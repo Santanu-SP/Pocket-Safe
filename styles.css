@@ -87,12 +87,18 @@ body {
 }
 
 @media (max-width: 479px) {
+    body {
+        overflow: hidden;
+    }
     .app-shell {
         width: 100%;
-        min-height: 100vh;
+        height: 100vh;
+        height: 100dvh;
         background-color: var(--bg-color);
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        position: relative;
     }
 }
 
@@ -274,11 +280,13 @@ h2 {
 .quick-chip {
     flex-shrink: 0;
     padding: 10px 16px;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
     border-radius: var(--radius-pill);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--primary);
+    font-family: inherit;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -286,13 +294,24 @@ h2 {
     transition: all var(--anim-fast);
 }
 
+body.dark-mode .quick-chip {
+    background: rgba(129, 140, 248, 0.12);
+    border-color: rgba(129, 140, 248, 0.25);
+    color: var(--primary-light);
+}
+
 .quick-chip:active {
     transform: scale(0.95);
+    background: rgba(99, 102, 241, 0.18);
+}
+
+body.dark-mode .quick-chip:active {
+    background: rgba(129, 140, 248, 0.22);
 }
 
 .quick-chip.selected {
     background: var(--gradient-primary);
-    color: white;
+    color: white !important;
     border-color: transparent;
     box-shadow: var(--shadow-sm);
 }
