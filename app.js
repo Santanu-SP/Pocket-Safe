@@ -51,7 +51,7 @@ function showAuthView() {
 
 function showAppView() {
     document.getElementById('auth-view').style.display = 'none';
-    document.getElementById('app-view').style.display = 'block';
+    document.getElementById('app-view').style.display = 'flex';
     initUI(); 
     renderAll();
 }
