@@ -18,121 +18,48 @@ const STATE = {
 
 // Global variables for session/runtime
 let selectedRoommates = [];
-let SERVER_MODE = false;
-const SERVER_URL = 'http://localhost:3000';
+
+// --- FIREBASE CONFIGURATION ---
+// Replace these placeholders with your actual web app config from Firebase Console
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase SDK
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-    checkSession();
+    initAuthObserver();
 });
 
-// Check collaborative server availability
-async function checkServerHealth() {
-    try {
-        const res = await fetch(`${SERVER_URL}/api/health`);
-        const data = await res.json();
-        if (data.status === 'OK') {
-            SERVER_MODE = true;
-            console.log("Connected to PocketSafe collaborative server! MongoDB: " + data.database);
-            return true;
+function initAuthObserver() {
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            // Retrieve username from email
+            let username = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (user.email.endsWith('@pocketsafe.local')) {
+                username = user.email.split('@')[0];
+            }
+            STATE.currentUser = username;
+            showAppView();
+        } else {
+            STATE.currentUser = null;
+            showAuthView();
         }
-    } catch (e) {
-        console.warn("Collaborative server offline. Falling back to local storage mode.");
-    }
-    SERVER_MODE = false;
-    return false;
+    });
 }
 
 // --- AUTH & SESSION ---
-async function checkSession() {
-    await checkServerHealth();
-    await loadServerConfig();
-
-    let session = null;
-    try { session = JSON.parse(localStorage.getItem('debtTracker_session')); } catch (e) { }
-    try { if (!session) session = JSON.parse(sessionStorage.getItem('debtTracker_session')); } catch (e) { }
-
-    if (session && session.username) {
-        if (SERVER_MODE) {
-            loginUser(session.username);
-        } else {
-            const users = JSON.parse(localStorage.getItem('debtTracker_users') || '[]');
-            const user = users.find(u => u.username === session.username);
-
-            if (user) {
-                loginUser(user.username);
-                return;
-            }
-            showAuthView();
-        }
-    } else {
-        showAuthView();
-    }
-}
-
-// Fetch server-side dynamic configurations
-async function loadServerConfig() {
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/config`);
-            if (res.ok) {
-                const config = await res.json();
-                if (config.googleClientId) {
-                    initGoogleSignIn(config.googleClientId);
-                }
-            }
-        } catch (e) {
-            console.warn("Failed to fetch configurations from server.", e);
-        }
-    }
-}
-
-// Initialize Google Sign-in button rendering
-function initGoogleSignIn(clientId) {
-    const container = document.getElementById('google-signin-container');
-    const btnNode = document.getElementById('google-signin-btn');
-    if (!container || !btnNode) return;
-
-    // Show button container
-    container.style.display = 'block';
-
-    // Initialize GIS Client SDK
-    google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleGoogleCredentialResponse
-    });
-
-    // Render native Google Sign-in button
-    google.accounts.id.renderButton(
-        btnNode,
-        { theme: "outline", size: "large", width: 280 }
-    );
-}
-
-// Callback when Google auth popup completes
-async function handleGoogleCredentialResponse(response) {
-    const credentialToken = response.credential;
-    if (!credentialToken) return;
-
-    try {
-        const res = await fetch(`${SERVER_URL}/api/auth/google`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: credentialToken })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-            // Keep user permanently logged in matching default checkbox behavior
-            localStorage.setItem('debtTracker_session', JSON.stringify({ username: data.username }));
-            loginUser(data.username);
-        } else {
-            alert(data.error || "Google login failed");
-        }
-    } catch (e) {
-        alert("Server error verifying Google token.");
-    }
-}
-
 function showAuthView() {
     document.getElementById('auth-view').style.display = 'block';
     document.getElementById('app-view').style.display = 'none';
@@ -144,7 +71,7 @@ function showAppView() {
     document.getElementById('auth-view').style.display = 'none';
     document.getElementById('app-view').style.display = 'flex';
     initUI(); 
-    renderAll();
+    loadData();
 }
 
 function toggleAuthMode(mode) {
@@ -160,8 +87,6 @@ function toggleAuthMode(mode) {
 async function handleLogin() {
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
-    const rememberMe = document.getElementById('login-remember').checked;
-
     const username = usernameInput.value.trim().toLowerCase();
     const password = passwordInput.value;
 
@@ -170,47 +95,13 @@ async function handleLogin() {
         return;
     }
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                if (rememberMe) {
-                    localStorage.setItem('debtTracker_session', JSON.stringify({ username }));
-                } else {
-                    sessionStorage.setItem('debtTracker_session', JSON.stringify({ username }));
-                    localStorage.removeItem('debtTracker_session'); 
-                }
-                loginUser(username);
-                usernameInput.value = '';
-                passwordInput.value = '';
-            } else {
-                alert(data.error || "Invalid login");
-            }
-        } catch (e) {
-            alert("Error connecting to login server.");
-        }
-    } else {
-        const users = JSON.parse(localStorage.getItem('debtTracker_users') || '[]');
-        const user = users.find(u => u.username === username && u.password === password);
-
-        if (user) {
-            if (rememberMe) {
-                localStorage.setItem('debtTracker_session', JSON.stringify({ username }));
-            } else {
-                sessionStorage.setItem('debtTracker_session', JSON.stringify({ username }));
-                localStorage.removeItem('debtTracker_session'); 
-            }
-            loginUser(username);
-            usernameInput.value = '';
-            passwordInput.value = '';
-        } else {
-            alert("Invalid username or password");
-        }
+    const email = `${username}@pocketsafe.local`;
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+        usernameInput.value = '';
+        passwordInput.value = '';
+    } catch (error) {
+        alert("Invalid username or password");
     }
 }
 
@@ -238,147 +129,168 @@ async function handleRegister() {
         return;
     }
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                alert("Student profile created! You can now login.");
-                toggleAuthMode('login');
-            } else {
-                alert(data.error || "Registration failed");
-            }
-        } catch (e) {
-            alert("Error connecting to server.");
-        }
-    } else {
-        const users = JSON.parse(localStorage.getItem('debtTracker_users') || '[]');
-        if (users.find(u => u.username === username)) {
-            alert("Username already exists");
-            return;
-        }
+    const email = `${username}@pocketsafe.local`;
+    try {
+        // Create user in Firebase Auth
+        await auth.createUserWithEmailAndPassword(email, password);
+        
+        // Setup initial user doc in Firestore
+        await db.collection('users').doc(username).set({
+            username,
+            email,
+            settings: { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null },
+            savingsGoal: { title: "Set a savings goal! 🎯", target: 0 },
+            friends: []
+        });
 
-        users.push({ username, password });
-        localStorage.setItem('debtTracker_users', JSON.stringify(users));
-
-        alert("Account created! You can now login.");
+        alert("Account created successfully!");
         toggleAuthMode('login');
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        // Google popup login
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        const username = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // Auto-provision user doc in Firestore if first login
+        const userDoc = await db.collection('users').doc(username).get();
+        if (!userDoc.exists) {
+            await db.collection('users').doc(username).set({
+                username,
+                email: user.email,
+                settings: { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null },
+                savingsGoal: { title: "Set a savings goal! 🎯", target: 0 },
+                friends: []
+            });
+        }
+    } catch (error) {
+        alert("Google Sign-In failed: " + error.message);
     }
 }
 
 function handleLogout() {
     STATE.currentUser = null;
-    localStorage.removeItem('debtTracker_session');
-    sessionStorage.removeItem('debtTracker_session');
-    location.reload();
+    auth.signOut().then(() => {
+        location.reload();
+    });
 }
 
-function loginUser(username) {
-    STATE.currentUser = username;
-    loadData();
-}
-
-// --- DATA PERSISTENCE ---
+// --- DATA PERSISTENCE & COMPILING ---
 async function loadData() {
     if (!STATE.currentUser) return;
+    const username = STATE.currentUser;
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/user/state?username=${STATE.currentUser}`);
-            if (res.ok) {
-                const data = await res.json();
-                STATE.transactions = data.transactions || [];
-                STATE.friends = data.friends || [];
-                STATE.settings = data.settings || { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null };
-                STATE.savingsGoal = data.savingsGoal || { title: "Set a savings goal! 🎯", target: 0, current: 0 };
-                STATE.balance = data.balance || 0;
-                
-                checkSalaryAutoAdd();
-                renderAll();
-                return;
+    try {
+        // 1. Fetch user doc
+        const userDoc = await db.collection('users').doc(username).get();
+        if (!userDoc.exists) {
+            // Provision backup doc
+            await db.collection('users').doc(username).set({
+                username,
+                email: auth.currentUser ? auth.currentUser.email : '',
+                settings: { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null },
+                savingsGoal: { title: "Set a savings goal! 🎯", target: 0 },
+                friends: []
+            });
+            await loadData();
+            return;
+        }
+
+        const userData = userDoc.data();
+        STATE.settings = userData.settings || { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null };
+        STATE.savingsGoal = userData.savingsGoal || { title: "Set a savings goal! 🎯", target: 0 };
+
+        // 2. Fetch all transactions involving this user (payer, friend, or split list)
+        const q1 = db.collection('transactions').where('payer', '==', username).get();
+        const q2 = db.collection('transactions').where('friend', '==', username).get();
+        const q3 = db.collection('transactions').where('splitDetails.involvedUsernames', 'array-contains', username).get();
+
+        const [s1, s2, s3] = await Promise.all([q1, q2, q3]);
+
+        const txMap = new Map();
+        const addDoc = (doc) => {
+            const data = doc.data();
+            const dateStr = data.date ? data.date.toDate().toISOString() : new Date().toISOString();
+            txMap.set(doc.id, {
+                id: doc.id,
+                ...data,
+                date: dateStr
+            });
+        };
+
+        s1.forEach(addDoc);
+        s2.forEach(addDoc);
+        s3.forEach(addDoc);
+
+        // Sort descending by date
+        STATE.transactions = Array.from(txMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // 3. Dynamic roommate balance compiling
+        const friendsList = [];
+        for (const fName of userData.friends || []) {
+            let debtBalance = 0;
+            STATE.transactions.forEach(t => {
+                if (t.type === 'lend') {
+                    if (t.payer === username && t.friend === fName) debtBalance += t.amount;
+                    else if (t.payer === fName && t.friend === username) debtBalance -= t.amount;
+                } else if (t.type === 'repayment') {
+                    if (t.payer === fName && t.friend === username) debtBalance -= t.amount;
+                    else if (t.payer === username && t.friend === fName) debtBalance += t.amount;
+                } else if (t.type === 'split' && t.splitDetails) {
+                    if (t.payer === username && t.splitDetails.involvedUsernames.includes(fName)) {
+                        debtBalance += t.splitDetails.amountPerPerson;
+                    } else if (t.payer === fName && t.splitDetails.involvedUsernames.includes(username)) {
+                        debtBalance -= t.splitDetails.amountPerPerson;
+                    }
+                }
+            });
+            friendsList.push({
+                id: fName,
+                name: fName,
+                balance: debtBalance
+            });
+        }
+        STATE.friends = friendsList;
+
+        // 4. Wallet balance & savings tracker calculations
+        let walletBalance = 0;
+        let savingsTotal = 0;
+
+        STATE.transactions.forEach(t => {
+            if (t.payer === username) {
+                if (t.type === 'income' || t.type === 'salary') {
+                    walletBalance += t.amount;
+                } else if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit' || t.type === 'split') {
+                    walletBalance -= t.amount;
+                } else if (t.type === 'repayment') {
+                    walletBalance -= t.amount;
+                }
+
+                if (t.type === 'savings_deposit') {
+                    savingsTotal += t.amount;
+                }
+            } else if (t.friend === username && t.type === 'repayment') {
+                walletBalance += t.amount;
             }
-        } catch (e) {
-            console.error("Server fetch failed, using local fallback...", e);
-        }
-    }
+        });
 
-    // Local Storage Fallback
-    const key = `debtTrackerData_${STATE.currentUser}`;
-    const data = localStorage.getItem(key);
-
-    STATE.transactions = [];
-    STATE.friends = [];
-    STATE.settings = { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null };
-    STATE.savingsGoal = { title: "Set a savings goal! 🎯", target: 0, current: 0 };
-    STATE.balance = 0;
-
-    if (data) {
-        const parsed = JSON.parse(data);
-        STATE.transactions = parsed.transactions || [];
-        STATE.friends = parsed.friends || [];
-        STATE.settings = parsed.settings || STATE.settings;
-        STATE.savingsGoal = parsed.savingsGoal || STATE.savingsGoal;
-    }
-    recalculateBalance();
-    checkSalaryAutoAdd();
-    renderAll();
-}
-
-async function saveData() {
-    if (!STATE.currentUser) return;
-
-    if (!SERVER_MODE) {
-        const key = `debtTrackerData_${STATE.currentUser}`;
-        localStorage.setItem(key, JSON.stringify({
-            transactions: STATE.transactions,
-            friends: STATE.friends,
-            settings: STATE.settings,
-            savingsGoal: STATE.savingsGoal
-        }));
-        renderAll();
-    } else {
-        // Transactions endpoint handles edits, just re-load state package
-        await loadData();
-    }
-}
-
-function recalculateBalance() {
-    let balance = 0;
-    let savingsTotal = 0;
-
-    STATE.transactions.forEach(t => {
-        if (t.type === 'income' || t.type === 'salary' || t.type === 'repayment') {
-            balance += t.amount;
-        } else if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
-            balance -= t.amount;
-        }
-
-        if (t.type === 'savings_deposit') {
-            savingsTotal += t.amount;
-        }
-    });
-
-    STATE.balance = balance;
-    if (STATE.savingsGoal) {
+        STATE.balance = walletBalance;
         STATE.savingsGoal.current = savingsTotal;
-    }
-}
 
-function clearAllData() {
-    if (confirm("Are you sure you want to delete all user settings and transactions? This cannot be undone.")) {
-        if (STATE.currentUser) {
-            localStorage.removeItem(`debtTrackerData_${STATE.currentUser}`);
-        }
-        location.reload();
+        checkSalaryAutoAdd();
+        renderAll();
+    } catch (e) {
+        console.error("Firestore fetch error:", e);
     }
 }
 
 // --- STUDENT SAVINGS ASSISTANT LOGIC ---
-
 function updateDailyDial() {
     const today = new Date();
     const year = today.getFullYear();
@@ -431,10 +343,6 @@ function updateSavingsGoalUI() {
     const goalCard = document.getElementById('savings-goal-card');
     if (!goalCard) return;
 
-    if (!STATE.savingsGoal) {
-        STATE.savingsGoal = { title: "Set a savings goal! 🎯", target: 0, current: 0 };
-    }
-
     const title = STATE.savingsGoal.title || "Set a savings goal! 🎯";
     const target = STATE.savingsGoal.target || 0;
     const current = STATE.savingsGoal.current || 0;
@@ -476,33 +384,16 @@ async function saveSavingsGoal() {
         return;
     }
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/user/goal`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: STATE.currentUser, title, target })
-            });
-            if (res.ok) {
-                alert("Savings goal updated!");
-                await loadData();
-            } else {
-                alert("Failed to update savings goal.");
-            }
-        } catch (e) {
-            alert("Server connection error.");
-        }
-        return;
+    try {
+        await db.collection('users').doc(STATE.currentUser).update({
+            'savingsGoal.title': title,
+            'savingsGoal.target': target
+        });
+        alert("Savings goal updated!");
+        await loadData();
+    } catch (e) {
+        alert("Firestore error updating goal: " + e.message);
     }
-
-    if (!STATE.savingsGoal) {
-        STATE.savingsGoal = { title: "", target: 0, current: 0 };
-    }
-    STATE.savingsGoal.title = title;
-    STATE.savingsGoal.target = target;
-    
-    alert("Savings goal updated!");
-    saveData();
 }
 
 async function depositToSavings() {
@@ -519,49 +410,24 @@ async function depositToSavings() {
         return;
     }
 
-    if (SERVER_MODE) {
-        try {
-            const targetTitle = STATE.savingsGoal ? STATE.savingsGoal.title : "Savings Goal";
-            const res = await fetch(`${SERVER_URL}/api/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: STATE.currentUser,
-                    desc: `Deposit to: ${targetTitle}`,
-                    amount: amount,
-                    type: 'savings_deposit'
-                })
-            });
-            if (res.ok) {
-                amtInput.value = '';
-                await loadData();
-                alert(`Deposited ${formatCurrency(amount)} into savings goal!`);
-            } else {
-                alert("Failed to deposit to savings goal.");
-            }
-        } catch (e) {
-            alert("Server connection error.");
-        }
-        return;
+    try {
+        const targetTitle = STATE.savingsGoal ? STATE.savingsGoal.title : "Savings Goal";
+        await db.collection('transactions').add({
+            payer: STATE.currentUser,
+            desc: `Deposit to: ${targetTitle}`,
+            amount: amount,
+            type: 'savings_deposit',
+            date: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        amtInput.value = '';
+        await loadData();
+        alert(`Deposited ${formatCurrency(amount)} into savings goal!`);
+    } catch (e) {
+        alert("Failed to record savings deposit: " + e.message);
     }
-
-    const targetTitle = STATE.savingsGoal ? STATE.savingsGoal.title : "Savings Goal";
-    STATE.transactions.unshift({
-        id: Date.now(),
-        date: new Date().toISOString(),
-        desc: `Deposit to: ${targetTitle}`,
-        amount: amount,
-        type: 'savings_deposit'
-    });
-
-    amtInput.value = '';
-    recalculateBalance();
-    saveData();
-    alert(`Deposited ${formatCurrency(amount)} into savings goal!`);
 }
 
 // --- ROOMMATE SPLIT BUBBLES UI ---
-
 function renderQuickSplitBubbles() {
     const container = document.getElementById('quick-split-bubbles');
     if (!container) return;
@@ -574,8 +440,8 @@ function renderQuickSplitBubbles() {
 
     STATE.friends.forEach(f => {
         const bubble = document.createElement('div');
-        bubble.className = `roommate-bubble ${selectedRoommates.includes(f.id) ? 'selected' : ''}`;
-        bubble.onclick = () => toggleRoommateBubble(f.id);
+        bubble.className = `roommate-bubble ${selectedRoommates.includes(f.name) ? 'selected' : ''}`;
+        bubble.onclick = () => toggleRoommateBubble(f.name);
 
         const initials = f.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
@@ -590,104 +456,48 @@ function renderQuickSplitBubbles() {
     });
 }
 
-function toggleRoommateBubble(id) {
-    const idx = selectedRoommates.indexOf(id);
+function toggleRoommateBubble(name) {
+    const idx = selectedRoommates.indexOf(name);
     if (idx > -1) {
         selectedRoommates.splice(idx, 1);
     } else {
-        selectedRoommates.push(id);
+        selectedRoommates.push(name);
     }
     renderQuickSplitBubbles();
 }
 
 // --- 1-TAP QUICK SPENDING ACTIONS ---
-
 async function quickLogTemplate(desc, amount) {
     if (isNaN(amount) || amount <= 0) return;
 
-    if (SERVER_MODE) {
-        const txData = {
-            username: STATE.currentUser,
-            desc: desc,
-            amount: amount,
-            type: selectedRoommates.length > 0 ? 'split' : 'expense'
-        };
+    const txData = {
+        payer: STATE.currentUser,
+        desc: desc,
+        amount: amount,
+        type: selectedRoommates.length > 0 ? 'split' : 'expense',
+        date: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
-        if (selectedRoommates.length > 0) {
-            const involvedUsernames = selectedRoommates.map(fid => {
-                const f = STATE.friends.find(fr => fr.id === fid);
-                return f ? f.name : null;
-            }).filter(Boolean);
-
-            const total = involvedUsernames.length + 1;
-            txData.desc = `${desc} (Split)`;
-            txData.splitDetails = {
-                totalParticipants: total,
-                amountPerPerson: amount / total,
-                involvedUsernames,
-                includedMe: true
-            };
-        }
-
-        try {
-            const res = await fetch(`${SERVER_URL}/api/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(txData)
-            });
-            if (res.ok) {
-                selectedRoommates = [];
-                const quickAmtInput = document.getElementById('quick-amount');
-                if (quickAmtInput) quickAmtInput.value = '';
-                await loadData();
-            } else {
-                const data = await res.json();
-                alert(data.error || "Failed to split transaction");
-            }
-        } catch (e) {
-            alert("Error communicating with server.");
-        }
-        return;
-    }
-
-    // Local Storage Fallback
     if (selectedRoommates.length > 0) {
-        const participants = selectedRoommates.length + 1;
-        const splitAmount = amount / participants;
-
-        selectedRoommates.forEach(fid => {
-            updateFriendDebt(fid, splitAmount);
-        });
-
-        STATE.transactions.unshift({
-            id: Date.now(),
-            date: new Date().toISOString(),
-            desc: `${desc} (Split)`,
-            amount: amount,
-            type: 'split',
-            splitDetails: {
-                totalParticipants: participants,
-                amountPerPerson: splitAmount,
-                involvedFriendIds: [...selectedRoommates],
-                includedMe: true
-            }
-        });
-    } else {
-        STATE.transactions.unshift({
-            id: Date.now(),
-            date: new Date().toISOString(),
-            desc: desc,
-            amount: amount,
-            type: 'expense'
-        });
+        const total = selectedRoommates.length + 1;
+        txData.desc = `${desc} (Split)`;
+        txData.splitDetails = {
+            totalParticipants: total,
+            amountPerPerson: amount / total,
+            involvedUsernames: [...selectedRoommates],
+            includedMe: true
+        };
     }
 
-    selectedRoommates = [];
-    const quickAmtInput = document.getElementById('quick-amount');
-    if (quickAmtInput) quickAmtInput.value = '';
-
-    recalculateBalance();
-    saveData();
+    try {
+        await db.collection('transactions').add(txData);
+        selectedRoommates = [];
+        const quickAmtInput = document.getElementById('quick-amount');
+        if (quickAmtInput) quickAmtInput.value = '';
+        await loadData();
+    } catch (e) {
+        alert("Error saving transaction: " + e.message);
+    }
 }
 
 function handleQuickAdd() {
@@ -703,7 +513,6 @@ function handleQuickAdd() {
 }
 
 // --- DETAILED TRANSACTION SYSTEM ---
-
 async function addTransaction() {
     const descInput = document.getElementById('t-desc');
     const amountInput = document.getElementById('t-amount');
@@ -719,114 +528,44 @@ async function addTransaction() {
         return;
     }
 
-    if (SERVER_MODE) {
-        const selectedFriend = friendInput.options[friendInput.selectedIndex]?.text;
-        const txData = {
-            username: STATE.currentUser,
-            desc,
-            amount,
-            type,
-            friend: (type === 'lend' || type === 'repayment') ? selectedFriend : null
-        };
-
-        if (type === 'split') {
-            const checkboxes = document.querySelectorAll('#split-friends-list input[type="checkbox"]:checked');
-            const involvedUsernames = Array.from(checkboxes).map(cb => cb.value);
-            const includeMe = document.getElementById('split-include-me').checked;
-            const total = involvedUsernames.length + (includeMe ? 1 : 0);
-
-            if (total === 0) {
-                alert("Please select at least one roommate to split with.");
-                return;
-            }
-
-            txData.splitDetails = {
-                totalParticipants: total,
-                amountPerPerson: amount / total,
-                involvedUsernames,
-                includedMe: includeMe
-            };
-        }
-
-        try {
-            const res = await fetch(`${SERVER_URL}/api/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(txData)
-            });
-            if (res.ok) {
-                descInput.value = '';
-                amountInput.value = '';
-                closeModals();
-                await loadData();
-            } else {
-                const data = await res.json();
-                alert(data.error || "Failed to add transaction");
-            }
-        } catch (e) {
-            alert("Error sending transaction to server.");
-        }
-        return;
-    }
-
-    // Local Fallback Mode
-    const transaction = {
-        id: Date.now(),
-        date: new Date().toISOString(),
+    const selectedFriend = friendInput.options[friendInput.selectedIndex]?.text;
+    const txData = {
+        payer: STATE.currentUser,
         desc,
         amount,
-        type
+        type,
+        friend: (type === 'lend' || type === 'repayment') ? selectedFriend : null,
+        date: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    if (type === 'lend') {
-        const friendId = parseInt(friendInput.value);
-        if (!friendId) {
-            alert("Select a friend to lend to");
-            return;
-        }
-        transaction.friendId = friendId;
-        updateFriendDebt(friendId, amount);
-    } else if (type === 'repayment') {
-        const friendId = parseInt(friendInput.value);
-        if (!friendId) {
-            alert("Select the friend paying back");
-            return;
-        }
-        transaction.friendId = friendId;
-        updateFriendDebt(friendId, -amount);
-    } else if (type === 'split') {
-        const includeMe = document.getElementById('split-include-me').checked;
+    if (type === 'split') {
         const checkboxes = document.querySelectorAll('#split-friends-list input[type="checkbox"]:checked');
-        const selectedFriendIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        const involvedUsernames = Array.from(checkboxes).map(cb => cb.value);
+        const includeMe = document.getElementById('split-include-me').checked;
+        const total = involvedUsernames.length + (includeMe ? 1 : 0);
 
-        const totalParticipants = selectedFriendIds.length + (includeMe ? 1 : 0);
-
-        if (totalParticipants === 0) {
-            alert("Select at least one friend to split with.");
+        if (total === 0) {
+            alert("Please select at least one roommate to split with.");
             return;
         }
 
-        const splitAmount = amount / totalParticipants;
-
-        transaction.splitDetails = {
-            totalParticipants,
-            amountPerPerson: splitAmount,
-            involvedFriendIds: selectedFriendIds,
+        txData.splitDetails = {
+            totalParticipants: total,
+            amountPerPerson: amount / total,
+            involvedUsernames,
             includedMe: includeMe
         };
-
-        selectedFriendIds.forEach(fid => {
-            updateFriendDebt(fid, splitAmount);
-        });
     }
 
-    STATE.transactions.unshift(transaction);
-    recalculateBalance();
-    saveData();
-
-    descInput.value = '';
-    amountInput.value = '';
-    closeModals();
+    try {
+        await db.collection('transactions').add(txData);
+        descInput.value = '';
+        amountInput.value = '';
+        closeModals();
+        await loadData();
+    } catch (e) {
+        alert("Transaction failed: " + e.message);
+    }
 }
 
 async function addFriend() {
@@ -835,127 +574,75 @@ async function addFriend() {
 
     if (!name) return;
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/friends/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: STATE.currentUser, friendUsername: name })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                nameInput.value = '';
-                closeModals();
-                await loadData();
-            } else {
-                alert(data.error || "Could not link roommate");
-            }
-        } catch (e) {
-            alert("Error linking roommate with server.");
-        }
+    if (name === STATE.currentUser) {
+        alert("You cannot add yourself as a roommate!");
         return;
     }
 
-    // Local storage mode friend addition
-    const newFriend = {
-        id: Date.now(),
-        name: name,
-        balance: 0 
-    };
+    try {
+        // Validate friend profile exists in database
+        const friendDoc = await db.collection('users').doc(name).get();
+        if (!friendDoc.exists) {
+            alert(`Hostel username "${name}" does not exist. They must register first!`);
+            return;
+        }
 
-    STATE.friends.push(newFriend);
-    saveData();
+        const batch = db.batch();
+        const myRef = db.collection('users').doc(STATE.currentUser);
+        batch.update(myRef, {
+            friends: firebase.firestore.FieldValue.arrayUnion(name)
+        });
 
-    nameInput.value = '';
-    closeModals();
-}
+        const friendRef = db.collection('users').doc(name);
+        batch.update(friendRef, {
+            friends: firebase.firestore.FieldValue.arrayUnion(STATE.currentUser)
+        });
 
-function updateFriendDebt(friendId, amountAdded) {
-    const friend = STATE.friends.find(f => f.id === friendId);
-    if (friend) {
-        friend.balance += amountAdded;
+        await batch.commit();
+        
+        nameInput.value = '';
+        closeModals();
+        await loadData();
+    } catch (e) {
+        alert("Failed to link friend: " + e.message);
     }
 }
 
 async function settleFriendDebt(friendId, friendName, amount) {
     if (!confirm(`Mark ${friendName}'s debt of ${formatCurrency(amount)} as fully settled?`)) return;
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: friendName, 
-                    desc: `Settle with ${STATE.currentUser}`,
-                    amount: amount,
-                    type: 'repayment',
-                    friend: STATE.currentUser 
-                })
-            });
-            if (res.ok) {
-                await loadData();
-            } else {
-                const data = await res.json();
-                alert(data.error || "Failed to settle debt on server");
-            }
-        } catch (e) {
-            alert("Server connection error during settlement.");
-        }
-        return;
+    try {
+        await db.collection('transactions').add({
+            payer: friendName, 
+            desc: `Settle with ${STATE.currentUser}`,
+            amount: amount,
+            type: 'repayment',
+            friend: STATE.currentUser, 
+            date: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await loadData();
+    } catch (e) {
+        alert("Failed to settle: " + e.message);
     }
-
-    // Local storage settlement
-    STATE.transactions.unshift({
-        id: Date.now(),
-        date: new Date().toISOString(),
-        desc: `Settle with ${friendName}`,
-        amount: amount,
-        type: 'repayment',
-        friendId: friendId
-    });
-
-    updateFriendDebt(friendId, -amount);
-    recalculateBalance();
-    saveData();
 }
 
 // --- STUDENT ALLOWANCE LOGIC ---
-
 async function saveSalaryConfig() {
     const amount = parseFloat(document.getElementById('salary-input').value);
     const date = parseInt(document.getElementById('salary-date').value);
 
     if (isNaN(amount) || isNaN(date)) return;
 
-    if (SERVER_MODE) {
-        try {
-            const res = await fetch(`${SERVER_URL}/api/user/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: STATE.currentUser,
-                    salaryAmount: amount,
-                    salaryDate: date
-                })
-            });
-            if (res.ok) {
-                alert("Allowance settings saved!");
-                await loadData();
-            } else {
-                alert("Failed to save allowance settings.");
-            }
-        } catch (e) {
-            alert("Server connection error.");
-        }
-        return;
+    try {
+        await db.collection('users').doc(STATE.currentUser).update({
+            'settings.salaryAmount': amount,
+            'settings.salaryDate': date
+        });
+        alert("Allowance settings saved!");
+        await loadData();
+    } catch (e) {
+        alert("Error saving settings: " + e.message);
     }
-
-    STATE.settings.salaryAmount = amount;
-    STATE.settings.salaryDate = date;
-
-    alert("Allowance settings saved!");
-    saveData();
 }
 
 async function checkSalaryAutoAdd() {
@@ -964,55 +651,34 @@ async function checkSalaryAutoAdd() {
 
     if (STATE.settings.lastSalaryMonth !== currentMonthStr && STATE.settings.salaryAmount > 0) {
         if (today.getDate() >= STATE.settings.salaryDate) {
-            if (SERVER_MODE) {
-                try {
-                    await fetch(`${SERVER_URL}/api/transactions`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            username: STATE.currentUser,
-                            desc: 'Monthly Allowance (Auto Received)',
-                            amount: STATE.settings.salaryAmount,
-                            type: 'salary'
-                        })
-                    });
+            try {
+                const batch = db.batch();
+                
+                const txRef = db.collection('transactions').doc();
+                batch.set(txRef, {
+                    payer: STATE.currentUser,
+                    desc: 'Monthly Allowance (Auto Received)',
+                    amount: STATE.settings.salaryAmount,
+                    type: 'salary',
+                    date: firebase.firestore.FieldValue.serverTimestamp()
+                });
 
-                    await fetch(`${SERVER_URL}/api/user/settings`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            username: STATE.currentUser,
-                            lastSalaryMonth: currentMonthStr
-                        })
-                    });
+                const userRef = db.collection('users').doc(STATE.currentUser);
+                batch.update(userRef, {
+                    'settings.lastSalaryMonth': currentMonthStr
+                });
 
-                    await loadData();
-                    alert(`Allowance of ${formatCurrency(STATE.settings.salaryAmount)} added automatically!`);
-                } catch (e) {
-                    console.error("Auto add allowance server sync failed", e);
-                }
-                return;
+                await batch.commit();
+                await loadData();
+                alert(`Allowance of ${formatCurrency(STATE.settings.salaryAmount)} added automatically!`);
+            } catch (e) {
+                console.error("Auto add allowance failed", e);
             }
-
-            // Local mode
-            STATE.transactions.unshift({
-                id: Date.now(),
-                date: new Date().toISOString(),
-                desc: 'Monthly Allowance (Auto Received)',
-                amount: STATE.settings.salaryAmount,
-                type: 'salary'
-            });
-
-            STATE.settings.lastSalaryMonth = currentMonthStr;
-            recalculateBalance();
-            saveData();
-            alert(`Allowance of ${formatCurrency(STATE.settings.salaryAmount)} added automatically!`);
         }
     }
 }
 
 // --- INTERACTIVE REPORT GRAPHICS ---
-
 function getCategoryFromDesc(desc, type) {
     if (type === 'lend') return 'Lending 💸';
     if (type === 'savings_deposit') return 'Savings Goal 🎯';
@@ -1132,51 +798,62 @@ window.switchView = function (viewId, navEl) {
     }
 }
 
-// --- STUDENT DEMO SETUP ---
-
+// --- STUDENT DEMO SETUP (Simulated in Firestore) ---
 async function loadDemoData() {
-    if (!confirm("This will replace current data with student demo data. Continue?")) return;
+    if (!confirm("This will overwrite your account with demo data. Continue?")) return;
 
-    if (SERVER_MODE) {
-        alert("Demo data is only supported in offline Local Storage mode. When connected to a server, you can link with actual roommates!");
-        return;
+    try {
+        const batch = db.batch();
+        const now = new Date();
+
+        // 1. Setup profile in batch
+        const userRef = db.collection('users').doc(STATE.currentUser);
+        batch.update(userRef, {
+            'settings.salaryAmount': 8000,
+            'settings.salaryDate': 1,
+            'settings.lastSalaryMonth': `${now.getFullYear()}-${now.getMonth() + 1}`,
+            'savingsGoal': { title: "Noise Earphones 🎧", target: 2500 },
+            'friends': ['rahul', 'sneha', 'amit']
+        });
+
+        // Ensure other test users exist in Firestore
+        batch.set(db.collection('users').doc('rahul'), { username: 'rahul', friends: [STATE.currentUser] }, { merge: true });
+        batch.set(db.collection('users').doc('sneha'), { username: 'sneha', friends: [STATE.currentUser] }, { merge: true });
+        batch.set(db.collection('users').doc('amit'), { username: 'amit', friends: [STATE.currentUser] }, { merge: true });
+
+        // 2. Clear old transactions for current user
+        const oldTxs = await db.collection('transactions').where('payer', '==', STATE.currentUser).get();
+        oldTxs.forEach(doc => batch.delete(doc.ref));
+
+        // 3. Staged Demo Transactions
+        const txs = [
+            { type: 'salary', amount: 8000, desc: 'Pocket Money from Dad', date: new Date(now.getFullYear(), now.getMonth(), 1) },
+            { type: 'savings_deposit', amount: 500, desc: 'Deposit to: Noise Earphones 🎧', date: new Date(now.getFullYear(), now.getMonth(), 2) },
+            { type: 'expense', amount: 1500, desc: 'Hostel Wifi bill', date: new Date(now.getFullYear(), now.getMonth(), 3) },
+            { type: 'split', amount: 360, desc: 'Canteen Lunch', date: new Date(now.getFullYear(), now.getMonth(), 5), splitDetails: { totalParticipants: 2, amountPerPerson: 180, involvedUsernames: ['rahul'], includedMe: true } },
+            { type: 'expense', amount: 40, desc: 'Chai & Samosa', date: new Date(now.getFullYear(), now.getMonth(), 5) },
+            { type: 'lend', amount: 50, desc: 'Lent for Xerox Sneha', date: new Date(now.getFullYear(), now.getMonth(), 6), friend: 'sneha' },
+            { type: 'expense', amount: 60, desc: 'Auto auto charge', date: new Date(now.getFullYear(), now.getMonth(), 7) }
+        ];
+
+        txs.forEach(t => {
+            const docRef = db.collection('transactions').doc();
+            batch.set(docRef, {
+                payer: STATE.currentUser,
+                ...t,
+                date: firebase.firestore.Timestamp.fromDate(t.date)
+            });
+        });
+
+        await batch.commit();
+        alert("Demo data loaded successfully!");
+        await loadData();
+    } catch (e) {
+        alert("Failed to load demo data: " + e.message);
     }
-
-    const now = new Date();
-    
-    STATE.settings.salaryAmount = 8000; // Parents allowance
-    STATE.settings.salaryDate = 1;
-    STATE.settings.lastSalaryMonth = `${now.getFullYear()}-${now.getMonth() + 1}`;
-
-    STATE.savingsGoal = {
-        title: "Noise Earphones 🎧",
-        target: 2500,
-        current: 500
-    };
-
-    STATE.friends = [
-        { id: 1, name: "rahul", balance: 180 },
-        { id: 2, name: "amit", balance: 0 },
-        { id: 3, name: "sneha", balance: -50 }
-    ];
-
-    STATE.transactions = [
-        { id: 101, type: 'salary', amount: 8000, desc: 'Pocket Money from Dad', date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString() },
-        { id: 102, type: 'savings_deposit', amount: 500, desc: 'Deposit to: Noise Earphones 🎧', date: new Date(now.getFullYear(), now.getMonth(), 2).toISOString() },
-        { id: 103, type: 'expense', amount: 1500, desc: 'Hostel Wifi bill', date: new Date(now.getFullYear(), now.getMonth(), 3).toISOString() },
-        { id: 104, type: 'split', amount: 360, desc: 'Canteen Lunch', date: new Date(now.getFullYear(), now.getMonth(), 5).toISOString(), splitDetails: { totalParticipants: 2, amountPerPerson: 180, involvedFriendIds: [1], includedMe: true } },
-        { id: 105, type: 'expense', amount: 40, desc: 'Chai & Samosa', date: new Date(now.getFullYear(), now.getMonth(), 5).toISOString() },
-        { id: 106, type: 'lend', amount: 50, desc: 'Lent for Xerox Sneha', date: new Date(now.getFullYear(), now.getMonth(), 6).toISOString(), friendId: 3 },
-        { id: 107, type: 'expense', amount: 60, desc: 'Auto auto charge', date: new Date(now.getFullYear(), now.getMonth(), 7).toISOString() }
-    ];
-
-    recalculateBalance();
-    saveData();
-    alert("Student demo profiles loaded! Allowance set to ₹8,000, goal set, and balances updated.");
 }
 
 // --- UI POPULATORS ---
-
 function initUI() {
     const dateSelect = document.getElementById('salary-date');
     if (dateSelect.options.length > 0) return; 
@@ -1207,11 +884,6 @@ function renderDashboard() {
     document.getElementById('parent-allowance').textContent = formatCurrency(STATE.settings.salaryAmount || 0);
     document.getElementById('total-wallet').textContent = formatCurrency(STATE.balance);
     document.getElementById('saved-money').textContent = formatCurrency(STATE.savingsGoal ? STATE.savingsGoal.current || 0 : 0);
-
-    let friendsOwed = 0;
-    STATE.friends.forEach(f => {
-        if (f.balance > 0) friendsOwed += f.balance;
-    });
 
     const list = document.getElementById('recent-transactions');
     list.innerHTML = '';
@@ -1269,7 +941,7 @@ function renderFriends() {
 
         let actionHtml = '';
         if (f.balance > 0) {
-            actionHtml = `<button onclick="settleFriendDebt(${f.id}, '${f.name.replace(/'/g, "\\'")}', ${f.balance})" style="padding:6px 12px; font-size:0.75rem; font-weight:700; background:none; border:1px solid var(--success); color:var(--success); border-radius:8px; cursor:pointer; width:auto;">Settle</button>`;
+            actionHtml = `<button onclick="settleFriendDebt(null, '${f.name.replace(/'/g, "\\'")}', ${f.balance})" style="padding:6px 12px; font-size:0.75rem; font-weight:700; background:none; border:1px solid var(--success); color:var(--success); border-radius:8px; cursor:pointer; width:auto;">Settle</button>`;
         }
 
         li.innerHTML = `
@@ -1457,14 +1129,13 @@ function updateThemeIcon() {
 initTheme();
 
 // --- DROPDOWN POPULATORS ---
-
 function renderFriendDropdown() {
     const select = document.getElementById('t-friend-select');
     if (!select) return;
     select.innerHTML = '<option value="">-- Select Friend --</option>';
     STATE.friends.forEach(f => {
         const opt = document.createElement('option');
-        opt.value = f.id;
+        opt.value = f.name;
         opt.text = f.name;
         select.appendChild(opt);
     });
@@ -1484,8 +1155,8 @@ function renderSplitFriendList() {
         div.style.marginBottom = '8px';
 
         div.innerHTML = `
-            <input type="checkbox" id="split-friend-${f.id}" value="${f.name}" style="width:18px; height:18px; margin-right:8px; accent-color: var(--primary);">
-            <label for="split-friend-${f.id}" style="margin:0;">${f.name}</label>
+            <input type="checkbox" id="split-friend-${f.name}" value="${f.name}" style="width:18px; height:18px; margin-right:8px; accent-color: var(--primary);">
+            <label for="split-friend-${f.name}" style="margin:0;">${f.name}</label>
         `;
         container.appendChild(div);
     });
