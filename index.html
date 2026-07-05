@@ -440,13 +440,38 @@
             <div class="modal-content" style="bottom: auto; top: 30%; width: 90%; margin: 0 auto; border-radius: var(--radius-lg); position: relative;">
                 <h2 style="margin-bottom: 16px;">Add Roommate</h2>
                 <div class="input-group">
-                    <label>Name</label>
-                    <input type="text" id="f-name" placeholder="Friend's Name">
+                    <label>Roommate Username or Email</label>
+                    <input type="text" id="f-name" placeholder="Enter username or email address">
                 </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button class="btn btn-secondary" onclick="closeModals()" style="flex: 1;">Cancel</button>
                     <button class="btn btn-primary" onclick="addFriend()" style="flex: 1;">Add Friend</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- 3. Onboarding Modal Overlay -->
+        <div id="modal-onboarding" class="modal-overlay" style="display: none; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 9999;">
+            <div class="modal-content" style="bottom: auto; top: 15%; width: 90%; margin: 0 auto; border-radius: var(--radius-lg); position: relative; padding: 24px;">
+                <h2 style="margin-bottom: 8px; text-align: center;">Welcome to PocketSafe! 🚀</h2>
+                <p style="color: var(--text-secondary); text-align: center; font-size: 0.8rem; font-weight: 600; margin-bottom: 20px;">
+                    Let's set up your starting balance and monthly allowance.
+                </p>
+                <div class="input-group">
+                    <label>How much money is in your wallet now? (₹)</label>
+                    <input type="number" id="onboard-balance" placeholder="e.g. 5000" min="0">
+                </div>
+                <div class="input-group">
+                    <label>Monthly Allowance / Pocket Money (₹)</label>
+                    <input type="number" id="onboard-allowance" placeholder="e.g. 8000" min="0">
+                </div>
+                <div class="input-group" style="margin-bottom: 24px;">
+                    <label>Allowance Day of Month</label>
+                    <select id="onboard-allowance-date">
+                        <!-- Filled by JS -->
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="submitOnboarding()" style="width: 100%; padding: 12px; font-weight: 700;">Get Started</button>
             </div>
         </div>
 

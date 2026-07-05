@@ -4,9 +4,10 @@ const STATE = {
     transactions: [],
     friends: [],
     settings: {
-        salaryAmount: 3000, // Monthly Allowance
+        salaryAmount: 0, // Set by user during onboarding
         salaryDate: 1, // Day of month (1-31)
-        lastSalaryMonth: null // 'YYYY-MM' format
+        lastSalaryMonth: null, // 'YYYY-MM' format
+        onboarded: false
     },
     savingsGoal: {
         title: "Set a savings goal! 🎯",
@@ -165,7 +166,7 @@ async function loginWithGoogle() {
             await db.collection('users').doc(username).set({
                 username,
                 email: user.email,
-                settings: { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null },
+                settings: { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false },
                 savingsGoal: { title: "Set a savings goal! 🎯", target: 0 },
                 friends: []
             });
@@ -195,7 +196,7 @@ async function loadData() {
             await db.collection('users').doc(username).set({
                 username,
                 email: auth.currentUser ? auth.currentUser.email : '',
-                settings: { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null },
+                settings: { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false },
                 savingsGoal: { title: "Set a savings goal! 🎯", target: 0 },
                 friends: []
             });
@@ -204,8 +205,13 @@ async function loadData() {
         }
 
         const userData = userDoc.data();
-        STATE.settings = userData.settings || { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null };
+        STATE.settings = userData.settings || { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false };
         STATE.savingsGoal = userData.savingsGoal || { title: "Set a savings goal! 🎯", target: 0 };
+
+        if (STATE.settings.onboarded !== true) {
+            showOnboardingModal();
+            return;
+        }
 
         // 2. Fetch all transactions involving this user (payer, friend, or split list)
         const q1 = db.collection('transactions').where('payer', '==', username).get();
@@ -571,30 +577,43 @@ async function addTransaction() {
 
 async function addFriend() {
     const nameInput = document.getElementById('f-name');
-    const name = nameInput.value.trim().toLowerCase();
+    const nameOrEmail = nameInput.value.trim().toLowerCase();
 
-    if (!name) return;
+    if (!nameOrEmail) return;
 
-    if (name === STATE.currentUser) {
+    if (nameOrEmail === STATE.currentUser) {
         alert("You cannot add yourself as a roommate!");
         return;
     }
 
     try {
-        // Validate friend profile exists in database
-        const friendDoc = await db.collection('users').doc(name).get();
-        if (!friendDoc.exists) {
-            alert(`Hostel username "${name}" does not exist. They must register first!`);
+        let friendUsername = null;
+
+        // 1. Check if input is a direct username (doc ID exists)
+        const docRef = db.collection('users').doc(nameOrEmail);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            friendUsername = nameOrEmail;
+        } else {
+            // 2. Query doc where email matches input
+            const querySnap = await db.collection('users').where('email', '==', nameOrEmail).get();
+            if (!querySnap.empty) {
+                friendUsername = querySnap.docs[0].id;
+            }
+        }
+
+        if (!friendUsername) {
+            alert(`No student found with username or email: "${nameOrEmail}". Make sure they sign up first!`);
             return;
         }
 
         const batch = db.batch();
         const myRef = db.collection('users').doc(STATE.currentUser);
         batch.update(myRef, {
-            friends: firebase.firestore.FieldValue.arrayUnion(name)
+            friends: firebase.firestore.FieldValue.arrayUnion(friendUsername)
         });
 
-        const friendRef = db.collection('users').doc(name);
+        const friendRef = db.collection('users').doc(friendUsername);
         batch.update(friendRef, {
             friends: firebase.firestore.FieldValue.arrayUnion(STATE.currentUser)
         });
@@ -1216,4 +1235,72 @@ function showAddFriendModal() {
 
 function formatCurrency(num) {
     return '₹' + num.toFixed(2);
+}
+
+function showOnboardingModal() {
+    const modal = document.getElementById('modal-onboarding');
+    if (!modal) return;
+
+    // Populate dates
+    const select = document.getElementById('onboard-allowance-date');
+    if (select && select.options.length === 0) {
+        for (let i = 1; i <= 31; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.text = i;
+            select.appendChild(opt);
+        }
+    }
+
+    modal.style.display = 'flex';
+}
+
+async function submitOnboarding() {
+    const balInput = document.getElementById('onboard-balance');
+    const allowInput = document.getElementById('onboard-allowance');
+    const dateInput = document.getElementById('onboard-allowance-date');
+
+    const balance = parseFloat(balInput.value) || 0;
+    const allowance = parseFloat(allowInput.value) || 0;
+    const date = parseInt(dateInput.value) || 1;
+
+    if (balance < 0 || allowance < 0) {
+        alert("Values cannot be negative.");
+        return;
+    }
+
+    const username = STATE.currentUser;
+    try {
+        const batch = db.batch();
+
+        // 1. Log starting balance transaction if > 0
+        if (balance > 0) {
+            const txRef = db.collection('transactions').doc();
+            batch.set(txRef, {
+                payer: username,
+                desc: 'Starting Balance Adjustment',
+                amount: balance,
+                type: 'income',
+                date: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 2. Set settings
+        const userRef = db.collection('users').doc(username);
+        batch.update(userRef, {
+            settings: {
+                salaryAmount: allowance,
+                salaryDate: date,
+                lastSalaryMonth: null,
+                onboarded: true
+            }
+        });
+
+        await batch.commit();
+
+        document.getElementById('modal-onboarding').style.display = 'none';
+        await loadData();
+    } catch (e) {
+        alert("Setup failed: " + e.message);
+    }
 }
