@@ -208,7 +208,14 @@ async function loadData() {
         STATE.settings = userData.settings || { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false };
         STATE.savingsGoal = userData.savingsGoal || { title: "Set a savings goal! 🎯", target: 0 };
 
-        document.getElementById('user-display-name').textContent = username;
+        const displayName = userData.customUsername || username;
+        document.getElementById('user-display-name').textContent = displayName;
+
+        // Show/hide unique username reminder banner
+        const banner = document.getElementById('username-reminder-banner');
+        if (banner) {
+            banner.style.display = (userData.customUsername) ? 'none' : 'flex';
+        }
 
         if (STATE.settings.onboarded !== true) {
             showOnboardingModal();
@@ -601,6 +608,12 @@ async function addFriend() {
             const querySnap = await db.collection('users').where('email', '==', nameOrEmail).get();
             if (!querySnap.empty) {
                 friendUsername = querySnap.docs[0].id;
+            } else {
+                // 3. Query doc where customUsername matches input
+                const customSnap = await db.collection('users').where('customUsername', '==', nameOrEmail).get();
+                if (!customSnap.empty) {
+                    friendUsername = customSnap.docs[0].id;
+                }
             }
         }
 
@@ -1334,5 +1347,74 @@ async function clearAllData() {
         location.reload();
     } catch (e) {
         alert("Reset failed: " + e.message);
+    }
+}
+
+async function showProfileModal() {
+    if (!STATE.currentUser) return;
+    const username = STATE.currentUser;
+
+    try {
+        const userDoc = await db.collection('users').doc(username).get();
+        if (userDoc.exists) {
+            const data = userDoc.data();
+            document.getElementById('profile-username').value = data.customUsername || '';
+            document.getElementById('profile-phone').value = data.phone || '';
+            document.getElementById('profile-room').value = data.roomNo || '';
+            document.getElementById('profile-photo').value = data.photoUrl || '';
+            
+            document.getElementById('modal-profile').style.display = 'flex';
+        }
+    } catch (e) {
+        alert("Failed to load profile details: " + e.message);
+    }
+}
+
+async function saveProfile() {
+    if (!STATE.currentUser) return;
+    const username = STATE.currentUser;
+
+    const newUsername = document.getElementById('profile-username').value.trim().toLowerCase();
+    const phone = document.getElementById('profile-phone').value.trim();
+    const room = document.getElementById('profile-room').value.trim();
+    const photo = document.getElementById('profile-photo').value.trim();
+
+    // Regular Expression validation for username (alphanumeric and underscores only)
+    if (newUsername !== '') {
+        const usernameRegex = /^[a-z0-9_]+$/;
+        if (!usernameRegex.test(newUsername)) {
+            alert("Username must only contain lowercase letters, numbers, and underscores.");
+            return;
+        }
+
+        try {
+            // Check if this custom username is already taken by another user
+            const querySnap = await db.collection('users').where('customUsername', '==', newUsername).get();
+            if (!querySnap.empty) {
+                // If it is taken, ensure it's not taken by the current user themselves
+                const takenByOther = querySnap.docs.some(doc => doc.id !== username);
+                if (takenByOther) {
+                    alert("This username is already taken by another student. Please pick a different one!");
+                    return;
+                }
+            }
+        } catch (e) {
+            alert("Validation failed: " + e.message);
+            return;
+        }
+    }
+
+    try {
+        await db.collection('users').doc(username).update({
+            customUsername: newUsername,
+            phone: phone,
+            roomNo: room,
+            photoUrl: photo
+        });
+        alert("Profile details updated successfully!");
+        closeModals();
+        await loadData();
+    } catch (e) {
+        alert("Failed to save profile: " + e.message);
     }
 }

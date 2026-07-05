@@ -95,11 +95,11 @@
                 <div class="app-container">
                 <!-- App Header -->
                 <header>
-                    <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="showProfileModal()">
                         <img src="logo.png" alt="Logo" style="width: 34px; height: 34px; border-radius: 10px;">
                         <h1 style="font-size: 1.35rem;">PocketSafe</h1>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
                         <!-- Theme Toggle Button -->
                         <button class="btn"
                             style="width: 38px; height: 38px; padding: 0; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);"
@@ -119,16 +119,18 @@
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                             </svg>
                         </button>
-                        <div id="user-profile-badge" style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); background: rgba(99,102,241,0.08); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 6px; color: var(--primary);">
+                        <div id="user-profile-badge" onclick="showProfileModal()" style="font-size: 0.75rem; font-weight: 700; background: rgba(99,102,241,0.08); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 6px; color: var(--primary); cursor: pointer;">
                             👤 <span id="user-display-name">...</span>
                         </div>
-                        <button class="btn btn-secondary" style="width: auto; padding: 8px 14px; font-size: 0.75rem; border-radius: 12px;"
-                            onclick="handleLogout()">Logout</button>
                     </div>
                 </header>
 
                 <!-- 1. DASHBOARD VIEW -->
                 <div id="view-dashboard" class="view active">
+                    <!-- Unique Username Reminder Banner -->
+                    <div id="username-reminder-banner" class="card" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 12px 16px; margin-bottom: 16px; border-radius: 12px; align-items: center; gap: 10px; color: var(--warning); font-size: 0.8rem; font-weight: 700; cursor: pointer;" onclick="showProfileModal()">
+                        <span>⚠️ Set your unique username in Profile to make it easy for roommates to add you!</span>
+                    </div>
                     <!-- Daily Safe-to-Spend Dial -->
                     <div class="card" style="padding: 16px 20px;">
                         <div class="budget-gauge">
@@ -475,6 +477,39 @@
                     </select>
                 </div>
                 <button class="btn btn-primary" onclick="submitOnboarding()" style="width: 100%; padding: 12px; font-weight: 700;">Get Started</button>
+            </div>
+        </div>
+
+        <!-- 4. Profile Modal Overlay -->
+        <div id="modal-profile" class="modal-overlay" style="display: none; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 9998;">
+            <div class="modal-content" style="bottom: auto; top: 10%; width: 90%; margin: 0 auto; border-radius: var(--radius-lg); position: relative; padding: 24px; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-bottom: 8px; text-align: center;">My Student Profile 👤</h2>
+                <p style="color: var(--text-secondary); text-align: center; font-size: 0.8rem; font-weight: 600; margin-bottom: 20px;">
+                    Set up details so roommates can find you easily.
+                </p>
+                <div class="input-group">
+                    <label>Unique Username (ID for friends to add you)</label>
+                    <input type="text" id="profile-username" placeholder="e.g. rahul_hostel">
+                </div>
+                <div class="input-group">
+                    <label>Mobile Number (Optional)</label>
+                    <input type="tel" id="profile-phone" placeholder="e.g. +91 98765 43210">
+                </div>
+                <div class="input-group">
+                    <label>Hostel Room No. (Optional)</label>
+                    <input type="text" id="profile-room" placeholder="e.g. Room 204-B">
+                </div>
+                <div class="input-group" style="margin-bottom: 24px;">
+                    <label>Profile Image URL (Optional)</label>
+                    <input type="url" id="profile-photo" placeholder="https://example.com/avatar.jpg">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn btn-primary" onclick="saveProfile()" style="width: 100%; padding: 12px; font-weight: 700;">Save Profile</button>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button class="btn btn-secondary" onclick="closeModals()" style="flex: 1; padding: 10px;">Close</button>
+                        <button class="btn btn-danger" onclick="handleLogout()" style="flex: 1; padding: 10px; background: var(--danger); color: white; border: none; border-radius: var(--radius-md); font-weight: 700; cursor: pointer;">Logout</button>
+                    </div>
+                </div>
             </div>
         </div>
 
