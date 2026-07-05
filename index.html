@@ -4,470 +4,433 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DebtTracker</title>
+    <title>PocketSafe - Student Savings & Split Tracker</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
-    <meta name="theme-color" content="#4f46e5">
-
+    <meta name="theme-color" content="#6366f1">
 </head>
 
 <body>
+    <!-- App Shell Wrapper (Simulator on Desktop, Full-bleed on Mobile) -->
+    <div class="app-shell">
+        <div class="app-container">
 
-    <!-- AUTH VIEW -->
-    <div id="auth-view" class="container" style="display: block; max-width: 400px; padding-top: 40px;">
-        <header style="text-align: center; margin-bottom: 40px;">
-            <img src="logo.png" alt="DebtTracker Logo"
-                style="width: 80px; height: 80px; margin-bottom: 16px; border-radius: 16px;">
-            <h1>DebtTracker</h1>
-            <p style="color: var(--text-secondary);">Track expenses & manage debts</p>
-        </header>
-
-        <!-- Login Form -->
-        <div id="login-form" class="card">
-            <h2>Welcome Back</h2>
-            <div class="input-group">
-                <label>Username</label>
-                <input type="text" id="login-username" placeholder="Enter username">
-            </div>
-            <div class="input-group">
-                <label>Password</label>
-                <input type="password" id="login-password" placeholder="Enter password">
-            </div>
-            <div class="input-group">
-                <div style="display: flex; align-items: center;">
-                    <input type="checkbox" id="login-remember" style="width: auto; margin-right: 8px;">
-                    <label for="login-remember" style="margin:0; cursor: pointer;">Remember me permanently</label>
-                </div>
-            </div>
-            <button class="btn btn-primary" onclick="handleLogin()">Login</button>
-            <p style="text-align: center; margin-top: 16px; font-size: 0.9rem;">
-                New here? <a href="#" onclick="toggleAuthMode('register')" style="color: var(--primary);">Create
-                    account</a>
-            </p>
-        </div>
-
-        <!-- Register Form -->
-        <div id="register-form" class="card" style="display: none;">
-            <h2>Create Account</h2>
-            <div class="input-group">
-                <label>Username</label>
-                <input type="text" id="reg-username" placeholder="Choose a username">
-            </div>
-            <div class="input-group">
-                <label>Password</label>
-                <input type="password" id="reg-password" placeholder="Choose a password">
-            </div>
-            <div class="input-group">
-                <label>Confirm Password</label>
-                <input type="password" id="reg-confirm-password" placeholder="Confirm password">
-            </div>
-            <button class="btn btn-primary" onclick="handleRegister()">Sign Up</button>
-            <p style="text-align: center; margin-top: 16px; font-size: 0.9rem;">
-                Already have an account? <a href="#" onclick="toggleAuthMode('login')"
-                    style="color: var(--primary);">Login</a>
-            </p>
-        </div>
-    </div>
-
-    <!-- MAIN APP VIEW (Hidden by default) -->
-    <div id="app-view" style="display: none;">
-        <div class="container">
-            <!-- Header -->
-            <header style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <img src="logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: 8px;">
-                    <h1>DebtTracker</h1>
-                </div>
-                <div style="display:flex; gap:12px;">
-                    <button class="btn"
-                        style="width: auto; padding: 8px; border-radius:50%; width:40px; height:40px; background:var(--card-bg); color:var(--text-primary); box-shadow:var(--shadow-sm); border:1px solid var(--border-color);"
-                        onclick="toggleTheme()" id="theme-toggle">
-                        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" style="display:none;">
-                            <circle cx="12" cy="12" r="5" />
-                            <path d="M12 1v2" />
-                            <path d="M12 21v2" />
-                            <path d="M4.22 4.22l1.42 1.42" />
-                            <path d="M18.36 18.36l1.42 1.42" />
-                            <path d="M1 12h2" />
-                            <path d="M21 12h2" />
-                            <path d="M4.22 19.78l1.42-1.42" />
-                            <path d="M18.36 5.64l1.42-1.42" />
-                        </svg>
-                        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-                        </svg>
-                    </button>
-                    <button class="btn" style="width: auto; padding: 6px 12px; font-size: 0.8rem; margin:0;"
-                        onclick="handleLogout()">Logout</button>
-                </div>
-            </header>
-
-            <!-- DASHBOARD VIEW -->
-            <div id="view-dashboard" class="view active">
-                <div class="card balance-card">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                        <div>
-                            <div class="label">Total Balance</div>
-                            <div class="amount" id="total-balance">₹0.00</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="label" style="font-size:0.75rem;">Friends Owe You</div>
-                            <div style="font-size:1.2rem; font-weight:700;" id="dashboard-owed">₹0.00</div>
-                        </div>
-                    </div>
-                    <div
-                        style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.2); font-size:0.85rem; opacity:0.9;">
-                        In Bank: <span id="bank-balance" style="font-weight:600;">₹0.00</span>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="quick-action-grid">
-                    <div class="quick-action" onclick="showTransactionModal('expense')">
-                        <div class="quick-action-icon" style="background: #fee2e2; color: #ef4444;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-                                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-                                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
-                            </svg>
-                        </div>
-                        <span style="font-size: 0.8rem; font-weight: 600;">Expense</span>
-                    </div>
-                    <div class="quick-action" onclick="showTransactionModal('lend')">
-                        <div class="quick-action-icon" style="background: #e0e7ff; color: #4f46e5;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
-                        </div>
-                        <span style="font-size: 0.8rem; font-weight: 600;">Lend</span>
-                    </div>
-                    <div class="quick-action" onclick="showTransactionModal('repayment')">
-                        <div class="quick-action-icon" style="background: #d1fae5; color: #10b981;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polyline points="9 14 4 9 9 4" />
-                                <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                            </svg>
-                        </div>
-                        <span style="font-size: 0.8rem; font-weight: 600;">Repay</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>Recent Activity</h2>
-                    <ul class="transaction-list" id="recent-transactions">
-                        <li class="list-item" style="color: var(--text-secondary); justify-content: center;">No
-                            transactions
-                            yet</li>
-                    </ul>
-                    <button class="btn"
-                        style="margin-top: 16px; background: var(--bg-secondary); color: var(--text-primary);"
-                        onclick="showHistoryView()">View All History</button>
-                </div>
-            </div>
-
-            <!-- HISTORY VIEW -->
-            <div id="view-history" class="view">
-                <header style="display: flex; align-items: center; margin-bottom: 20px;">
-                    <button
-                        onclick="switchView('view-dashboard', document.querySelector('.nav-item[data-target=\'view-dashboard\']'))"
-                        style="background:none; border:none; font-size:1.5rem; margin-right:10px; cursor:pointer;">←</button>
-                    <h2 style="margin:0;">History</h2>
+            <!-- AUTH VIEW (Login/Register) -->
+            <div id="auth-view" style="display: block; padding-top: 30px;">
+                <header style="flex-direction: column; text-align: center; margin-bottom: 30px; gap: 8px;">
+                    <img src="logo.png" alt="PocketSafe Logo"
+                        style="width: 72px; height: 72px; border-radius: 20px; box-shadow: var(--shadow-lg);">
+                    <h1 style="font-size: 1.85rem; margin-top: 10px;">PocketSafe</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Hostel & Roommate Budget Buddy</p>
                 </header>
 
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                        <select id="history-filter" onchange="renderHistoryView()"
-                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <option value="1year">Last 1 Year</option>
-                            <option value="all">All Time</option>
-                            <option value="30days">Last 30 Days</option>
-                        </select>
-                        <button class="btn btn-primary" style="width: auto; padding: 8px 16px;"
-                            onclick="exportHistoryToCSV()">Export CSV</button>
-                    </div>
-                    <ul class="transaction-list" id="history-list">
-                        <!-- Populated by JS -->
-                    </ul>
-                </div>
-            </div>
-
-            <!-- REPORTS VIEW -->
-            <div id="view-reports" class="view">
-                <div class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h2 style="margin:0;">Reports</h2>
-                        <select id="reports-filter" onchange="renderReports()" style="width:auto; padding:8px;">
-                            <option value="this_month">This Month</option>
-                            <option value="last_month">Last Month</option>
-                            <option value="all">All Time</option>
-                        </select>
-                    </div>
-                    <div style="text-align:center; margin-bottom:20px; color:var(--text-secondary); font-size:0.9rem;"
-                        id="reports-date-display">
-                        <!-- Date Range -->
-                    </div>
-
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">Income</div>
-                            <div class="stat-value text-success" id="report-income">₹0.00</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Expense</div>
-                            <div class="stat-value text-danger" id="report-expense">₹0.00</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Savings</div>
-                            <div class="stat-value" id="report-savings">₹0.00</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>Cash Flow</h2>
-                    <div id="bar-chart-container"
-                        style="height:150px; display:flex; gap:20px; justify-content:center; align-items:flex-end; padding-bottom:10px;">
-                        <!-- Bars injected by JS -->
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>Spending by Category</h2>
-                    <div style="display:flex; justify-content:center; align-items:center; gap:24px; flex-wrap:wrap;">
-                        <div id="category-donut" class="donut-chart"></div>
-                        <div id="category-legend" style="font-size:0.85rem;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- FRIENDS/DEBT VIEW -->
-            <div id="view-friends" class="view">
-                <div class="card">
-                    <h2>Owed to Me</h2>
-                    <div style="margin-bottom: 16px;">
-                        <span style="font-size: 2rem; font-weight: 700; color: var(--success);"
-                            id="total-owed">₹0.00</span>
-                    </div>
-                    <ul class="friend-list" id="friends-list">
-                        <!-- Dynamic List -->
-                    </ul>
-                    <button class="btn btn-primary" onclick="showAddFriendModal()">+ Add New Friend</button>
-                </div>
-            </div>
-
-            <!-- SETTINGS/SALARY VIEW -->
-            <div id="view-settings" class="view">
-                <div class="card">
-                    <h2>Salary Settings</h2>
+                <!-- Login Form Card -->
+                <div id="login-form" class="card">
+                    <h2 style="text-align: center; margin-bottom: 20px;">Welcome Back</h2>
                     <div class="input-group">
-                        <label>Monthly Salary</label>
-                        <input type="number" id="salary-input" placeholder="0.00">
+                        <label>Username</label>
+                        <input type="text" id="login-username" placeholder="Your hostel username">
                     </div>
-                    <!-- Salary Date Selection -->
                     <div class="input-group">
-                        <label>Salary Date (Day of Month)</label>
-                        <select id="salary-date">
-                            <!-- Options 1-31 generated by JS -->
-                        </select>
+                        <label>Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••">
                     </div>
-                    <button class="btn btn-primary" id="save-salary-btn">Save Salary Config</button>
+                    <div class="input-group" style="margin-bottom: 24px;">
+                        <label style="display: flex; align-items: center; gap: 8px; text-transform: none; cursor: pointer;">
+                            <input type="checkbox" id="login-remember" style="width: auto; height: auto;" checked>
+                            Keep me logged in
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="handleLogin()">Login</button>
+                    <p style="text-align: center; margin-top: 20px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">
+                        First time? <a href="#" onclick="toggleAuthMode('register')" style="color: var(--primary); text-decoration: none;">Create student profile</a>
+                    </p>
                 </div>
-                <div class="card">
-                    <h2>Data</h2>
-                    <button class="btn btn-danger" onclick="clearAllData()">Reset User Data</button>
+
+                <!-- Register Form Card -->
+                <div id="register-form" class="card" style="display: none;">
+                    <h2 style="text-align: center; margin-bottom: 20px;">Create Profile</h2>
+                    <div class="input-group">
+                        <label>Hostel Username</label>
+                        <input type="text" id="reg-username" placeholder="Choose username">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="reg-password" placeholder="Minimum 6 characters">
+                    </div>
+                    <div class="input-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="reg-confirm-password" placeholder="Confirm your password">
+                    </div>
+                    <button class="btn btn-primary" onclick="handleRegister()">Sign Up</button>
+                    <p style="text-align: center; margin-top: 20px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">
+                        Already have a profile? <a href="#" onclick="toggleAuthMode('login')" style="color: var(--primary); text-decoration: none;">Log In</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- MAIN APP VIEW (Authenticated) -->
+            <div id="app-view" style="display: none;">
+                <!-- App Header -->
+                <header>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="logo.png" alt="Logo" style="width: 34px; height: 34px; border-radius: 10px;">
+                        <h1 style="font-size: 1.35rem;">PocketSafe</h1>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <!-- Theme Toggle Button -->
+                        <button class="btn"
+                            style="width: 38px; height: 38px; padding: 0; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);"
+                            onclick="toggleTheme()" id="theme-toggle">
+                            <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none; width: 18px; height: 18px;">
+                                <circle cx="12" cy="12" r="5"></circle>
+                                <line x1="12" y1="1" x2="12" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="23"></line>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                <line x1="1" y1="12" x2="3" y2="12"></line>
+                                <line x1="21" y1="12" x2="23" y2="12"></line>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                            </svg>
+                            <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                            </svg>
+                        </button>
+                        <button class="btn btn-secondary" style="width: auto; padding: 8px 14px; font-size: 0.75rem; border-radius: 12px;"
+                            onclick="handleLogout()">Logout</button>
+                    </div>
+                </header>
+
+                <!-- 1. DASHBOARD VIEW -->
+                <div id="view-dashboard" class="view active">
+                    <!-- Daily Safe-to-Spend Dial -->
+                    <div class="card" style="padding: 16px 20px;">
+                        <div class="budget-gauge">
+                            <div class="gauge-circle" id="budget-progress-dial">
+                                <div class="gauge-content">
+                                    <div class="gauge-amount" id="safe-to-spend">₹0.00</div>
+                                    <div class="gauge-label">Safe Today</div>
+                                </div>
+                            </div>
+                            <div class="budget-stats">
+                                <div class="budget-stat-item">
+                                    <div class="budget-stat-val" id="parent-allowance">₹0.00</div>
+                                    <div class="budget-stat-lbl">Allowance</div>
+                                </div>
+                                <div class="budget-stat-item" style="border-left: 1px solid var(--border-color); padding-left: 20px;">
+                                    <div class="budget-stat-val" id="total-wallet">₹0.00</div>
+                                    <div class="budget-stat-lbl">In Wallet</div>
+                                </div>
+                                <div class="budget-stat-item" style="border-left: 1px solid var(--border-color); padding-left: 20px;">
+                                    <div class="budget-stat-val" id="saved-money" style="color: var(--success);">₹0.00</div>
+                                    <div class="budget-stat-lbl">Savings</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instant Logger Panel (1-Tap Splitting & Expense Adding) -->
+                    <div class="card">
+                        <h2 style="margin-bottom: 8px;">Quick Spend / Split ⚡</h2>
+                        <div class="quick-log-wrapper">
+                            <div class="quick-log-input-group">
+                                <span style="position: absolute; left: 16px; top: 12px; font-weight: 700; font-size: 1.25rem;">₹</span>
+                                <input type="number" id="quick-amount" placeholder="0.00" class="quick-amount-input" style="padding-left: 36px;">
+                                <button class="btn btn-primary" onclick="handleQuickAdd()" style="width: auto; padding: 12px 18px; border-radius: 14px;">Log</button>
+                            </div>
+                            
+                            <!-- Roommate Selector Quick Split Bubbles -->
+                            <div id="quick-split-section" style="margin-top: 4px;">
+                                <div class="roommate-bubbles-label">Tap to Split With (1-Click split):</div>
+                                <div class="roommate-bubbles-container" id="quick-split-bubbles">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <div class="quick-chips-scroll">
+                                <button class="quick-chip" onclick="quickLogTemplate('Tea ☕', 20)">☕ ₹20 Tea</button>
+                                <button class="quick-chip" onclick="quickLogTemplate('Maggi 🍜', 50)">🍜 ₹50 Maggi</button>
+                                <button class="quick-chip" onclick="quickLogTemplate('Auto 🛺', 40)">🛺 ₹40 Auto</button>
+                                <button class="quick-chip" onclick="quickLogTemplate('Canteen 🍛', 120)">🍛 ₹120 Lunch</button>
+                                <button class="quick-chip" onclick="quickLogTemplate('Xerox 📚', 30)">📚 ₹30 Xerox</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- active savings Goal Card -->
+                    <div class="card" id="savings-goal-card" style="cursor: pointer;" onclick="switchView('view-settings', document.querySelector('.nav-item[data-target=\'view-settings\']'))">
+                        <div class="goal-header">
+                            <span class="goal-title" id="goal-title-display">Goal: New Earphones 🎧</span>
+                            <span class="goal-values" id="goal-progress-values">₹0 / ₹0</span>
+                        </div>
+                        <div class="goal-progress-track">
+                            <div class="goal-progress-bar" id="goal-progress-bar"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="goal-meta" id="goal-days-status">Log below budget to build savings!</span>
+                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 700;">Edit Goal →</span>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity Card -->
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h2>Recent Activity</h2>
+                            <span id="quick-settlement-alert" style="font-size: 0.75rem; font-weight: 700; color: var(--primary);"></span>
+                        </div>
+                        <ul class="transaction-list" id="recent-transactions">
+                            <li class="list-item" style="color: var(--text-secondary); justify-content: center; font-size: 0.9rem;">No transactions recorded</li>
+                        </ul>
+                        <button class="btn btn-secondary" style="margin-top: 14px; padding: 10px;" onclick="showHistoryView()">Show Full History</button>
+                    </div>
+                </div>
+
+                <!-- 2. HISTORY VIEW -->
+                <div id="view-history" class="view">
+                    <header style="margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button onclick="switchView('view-dashboard', document.querySelector('.nav-item[data-target=\'view-dashboard\']'))"
+                                style="background: none; border: none; font-size: 1.3rem; color: var(--text-primary); cursor: pointer; padding: 4px;">←</button>
+                            <h2 style="margin: 0;">History Feed</h2>
+                        </div>
+                    </header>
+
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; gap: 8px;">
+                            <select id="history-filter" onchange="renderHistoryView()" style="padding: 10px; border-radius: 12px;">
+                                <option value="30days">Last 30 Days</option>
+                                <option value="1year">Last 1 Year</option>
+                                <option value="all">All Time</option>
+                            </select>
+                            <button class="btn btn-primary" style="width: auto; padding: 10px 16px; border-radius: 12px; font-size: 0.85rem;"
+                                onclick="exportHistoryToCSV()">Export CSV</button>
+                        </div>
+                        <ul class="transaction-list" id="history-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 3. REPORTS VIEW -->
+                <div id="view-reports" class="view">
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h2 style="margin:0;">Allowance Reports</h2>
+                            <select id="reports-filter" onchange="renderReports()" style="width:auto; padding:8px; border-radius:10px;">
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                        <div style="text-align:center; margin-bottom:16px; color:var(--text-secondary); font-size:0.8rem; font-weight:600;" id="reports-date-display">
+                            <!-- Date string -->
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Inflow</div>
+                                <div class="stat-value text-success" id="report-income">₹0.00</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Outflow</div>
+                                <div class="stat-value text-danger" id="report-expense">₹0.00</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Savings</div>
+                                <div class="stat-value" id="report-savings" style="color: var(--primary);">₹0.00</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Cash Flow</h2>
+                        <div class="bar-chart-container" id="bar-chart-container">
+                            <!-- Injected bars -->
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Top Expenses</h2>
+                        <div class="chart-donut-wrapper">
+                            <div id="category-donut" class="donut-chart"></div>
+                            <div id="category-legend" class="donut-legend"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. FRIENDS / DEBT VIEW -->
+                <div id="view-friends" class="view">
+                    <div class="card">
+                        <h2>Roommates & Hostellers</h2>
+                        <div style="margin-bottom: 16px;">
+                            <div class="stat-label">Total Others Owe You</div>
+                            <span style="font-size: 1.85rem; font-weight: 800; color: var(--success);" id="total-owed">₹0.00</span>
+                        </div>
+                        <ul class="friend-list" id="friends-list">
+                            <!-- Friends inserted here -->
+                        </ul>
+                        <button class="btn btn-primary" onclick="showAddFriendModal()" style="margin-top: 14px;">+ Add Split Friend</button>
+                    </div>
+                </div>
+
+                <!-- 5. SETTINGS / BUDGET CONFIG VIEW -->
+                <div id="view-settings" class="view">
+                    <!-- Pocket Money Settings -->
+                    <div class="card">
+                        <h2>Parent Allowance Config</h2>
+                        <div class="input-group">
+                            <label>Monthly Allowance (₹)</label>
+                            <input type="number" id="salary-input" placeholder="Pocket money amount">
+                        </div>
+                        <div class="input-group">
+                            <label>Allowance Receive Date</label>
+                            <select id="salary-date">
+                                <!-- Day options 1-31 -->
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="save-salary-btn">Save Allowance Settings</button>
+                    </div>
+
+                    <!-- Savings Goal Config -->
+                    <div class="card">
+                        <h2>Savings Goal Setup</h2>
+                        <div class="input-group">
+                            <label>Goal Name</label>
+                            <input type="text" id="goal-title-input" placeholder="e.g. New Earphones 🎧">
+                        </div>
+                        <div class="input-group">
+                            <label>Target Amount (₹)</label>
+                            <input type="number" id="goal-target-input" placeholder="Target budget">
+                        </div>
+                        <div class="input-group">
+                            <label>Deposit into Savings (₹)</label>
+                            <input type="number" id="goal-deposit-input" placeholder="Deduct from Wallet & Save">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="depositToSavings()" style="flex: 1;">Deposit</button>
+                            <button class="btn btn-primary" onclick="saveSavingsGoal()" style="flex: 2;">Save Goal Setup</button>
+                        </div>
+                    </div>
+
+                    <!-- Demo and data management -->
+                    <div class="card">
+                        <h2>Data Management</h2>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="loadDemoData()">Load Student Demo Data</button>
+                            <button class="btn btn-danger" onclick="clearAllData()">Reset All Profiles & Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation Bar -->
+                <nav class="bottom-nav">
+                    <a href="#" class="nav-item active" data-target="view-dashboard" onclick="switchView('view-dashboard', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                        </svg>
+                        <span>Home</span>
+                    </a>
+                    <a href="#" class="nav-item" data-target="view-friends" onclick="switchView('view-friends', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A3.375 3.375 0 0111.625 22.5h-1.25a3.375 3.375 0 01-3.375-3.263v-.114m0-10.464a3 3 0 110-6 3 3 0 010 6zm6 0a3 3 0 110-6 3 3 0 010 6zM3.375 7.5h.008v.008H3.375V7.5zm0 3h.008v.008H3.375v-.008zm0 3h.008v.008H3.375v-.008z" />
+                        </svg>
+                        <span>Split</span>
+                    </a>
+                    <a href="#" class="nav-item" data-target="view-reports" onclick="switchView('view-reports', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                        </svg>
+                        <span>Reports</span>
+                    </a>
+                    <a href="#" class="nav-item" data-target="view-settings" onclick="switchView('view-settings', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827a1.125 1.125 0 01.26 1.43l-1.297 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Setup</span>
+                    </a>
+                </nav>
+
+                <!-- Floating Action Button for detailed transactions -->
+                <button class="fab" id="add-transaction-btn" onclick="showTransactionModal()">+</button>
+            </div>
+
+        </div> <!-- /app-container -->
+
+        <!-- MODAL OVERLAYS (iOS Slide-up Sheets) -->
+        
+        <!-- 1. Detailed Add Transaction Modal -->
+        <div id="modal-transaction" class="modal-overlay">
+            <div class="modal-content">
+                <h2 style="margin-bottom: 16px;">New Transaction</h2>
+                <div class="input-group">
+                    <label>Description</label>
+                    <input type="text" id="t-desc" placeholder="e.g. Canteen Lunch, Xerox">
+                </div>
+                <div class="input-group">
+                    <label>Amount (₹)</label>
+                    <input type="number" id="t-amount" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label>Transaction Type</label>
+                    <select id="t-type">
+                        <option value="expense">Personal Expense</option>
+                        <option value="income">External Income</option>
+                        <option value="lend">Lend to Friend</option>
+                        <option value="repayment">Friend Repayment</option>
+                        <option value="split">Split Bill</option>
+                    </select>
+                </div>
+                
+                <!-- Lend/Repay Friend Selector -->
+                <div class="input-group" id="friend-selector-group" style="display:none;">
+                    <label>Select Friend</label>
+                    <select id="t-friend-select">
+                        <!-- Filled by JS -->
+                    </select>
+                </div>
+
+                <!-- Custom Split Participant Checklist -->
+                <div class="input-group" id="split-selector-group" style="display:none;">
+                    <label style="margin-bottom:8px; display:block;">Select Participants</label>
+                    <div style="border:1px solid var(--border-color); padding:10px; border-radius:12px; max-height:150px; overflow-y:auto; background: var(--input-bg);">
+                        <div style="display:flex; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+                            <input type="checkbox" id="split-include-me" checked style="width:18px; height:18px; margin-right:8px; accent-color: var(--primary);">
+                            <label for="split-include-me" style="margin:0; font-weight:700;">Me (Payer)</label>
+                        </div>
+                        <div id="split-friends-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 24px;">
+                    <button class="btn btn-secondary" onclick="closeModals()" style="flex: 1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="addTransaction()" style="flex: 2;">Save</button>
                 </div>
             </div>
         </div>
 
-        <!-- Floating Action Button for Transactions -->
-        <button class="fab" id="add-transaction-btn" onclick="showTransactionModal()">+</button>
-
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <a href="#" class="nav-item active" data-target="view-dashboard"
-                onclick="switchView('view-dashboard', this)">
-                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <polyline points="9 22 9 12 15 12 15 22" />
-                    </svg></span>
-                <span>Home</span>
-            </a>
-            <a href="#" class="nav-item" data-target="view-friends" onclick="switchView('view-friends', this)">
-                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg></span>
-                <span>Friends</span>
-            </a>
-            <a href="#" class="nav-item" data-target="view-reports" onclick="switchView('view-reports', this)">
-                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10" />
-                        <line x1="12" y1="20" x2="12" y2="4" />
-                        <line x1="6" y1="20" x2="6" y2="14" />
-                    </svg></span>
-                <span>Reports</span>
-            </a>
-            <a href="#" class="nav-item" data-target="view-settings" onclick="switchView('view-settings', this)">
-                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path
-                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg></span>
-                <span>Settings</span>
-            </a>
-        </nav>
-    </div>
-
-    <!-- MODALS (Hidden by default) -->
-    <!-- Add Transaction Modal -->
-    <div id="modal-transaction" class="modal-overlay">
-        <div class="modal-content">
-            <h2>New Transaction</h2>
-            <div class="input-group">
-                <label>Description</label>
-                <input type="text" id="t-desc" placeholder="e.g. Lunch">
-            </div>
-            <div class="input-group">
-                <label>Amount</label>
-                <input type="number" id="t-amount" placeholder="0.00">
-            </div>
-            <div class="input-group">
-                <label>Type</label>
-                <select id="t-type">
-                    <option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                    <option value="lend">Lend to Friend</option>
-                    <option value="repayment">Friend Repayment</option>
-                    <option value="split">Split Bill</option>
-                </select>
-            </div>
-            <div class="input-group" id="friend-selector-group" style="display:none;">
-                <label>Select Friend</label>
-                <select id="t-friend-select">
-                    <!-- Populated by JS -->
-                </select>
-            </div>
-
-            <!-- Split UI -->
-            <div class="input-group" id="split-selector-group" style="display:none;">
-                <label style="margin-bottom:8px; display:block;">Select Participants</label>
-                <div
-                    style="border:1px solid #e5e7eb; padding:8px; border-radius:12px; max-height:150px; overflow-y:auto;">
-                    <div
-                        style="display:flex; align-items:center; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px;">
-                        <input type="checkbox" id="split-include-me" checked style="width:20px; margin-right:8px;">
-                        <label for="split-include-me" style="margin:0; font-weight:600;">Me (Payer)</label>
-                    </div>
-                    <div id="split-friends-list">
-                        <!-- Checkboxes populated by JS -->
-                    </div>
+        <!-- 2. Add Friend Modal -->
+        <div id="modal-friend" class="modal-overlay">
+            <div class="modal-content" style="bottom: auto; top: 30%; width: 90%; margin: 0 auto; border-radius: var(--radius-lg); position: relative;">
+                <h2 style="margin-bottom: 16px;">Add Roommate</h2>
+                <div class="input-group">
+                    <label>Name</label>
+                    <input type="text" id="f-name" placeholder="Friend's Name">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn btn-secondary" onclick="closeModals()" style="flex: 1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="addFriend()" style="flex: 1;">Add Friend</button>
                 </div>
             </div>
-            <div class="modal-actions">
-                <button class="btn btn-cancel" onclick="closeModals()">Cancel</button>
-                <button class="btn btn-secondary" onclick="addTransaction(true)">Save & Add Another</button>
-                <button class="btn btn-primary" onclick="addTransaction()">Save</button>
-            </div>
         </div>
-    </div>
 
-    <!-- Add Friend Modal -->
-    <div id="modal-friend" class="modal-overlay modal-center">
-        <div class="modal-content">
-            <h2>Add Friend</h2>
-            <div class="input-group">
-                <label>Name</label>
-                <input type="text" id="f-name" placeholder="Name">
-            </div>
-            <div style="display:flex; gap:12px; margin-top:20px;">
-                <button class="btn" style="background:#e5e7eb; color:#333;" onclick="closeModals()">Cancel</button>
-                <button class="btn btn-primary" onclick="addFriend()">Add</button>
-            </div>
-        </div>
-    </div>
+    </div> <!-- /app-shell -->
 
     <script src="app.js"></script>
-    <script>
-        // Inline UI logic to avoid FOUC or simple interactions before app.js loads
-        function switchView(viewId, navEl) {
-            // Hide all views
-            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-            // Show target view
-            document.getElementById(viewId).classList.add('active');
-
-            // Update Nav
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            navEl.classList.add('active');
-
-            // Toggle FAB visibility (only on dashboard)
-            const fab = document.getElementById('add-transaction-btn');
-            if (viewId === 'view-dashboard') fab.style.display = 'flex';
-            else fab.style.display = 'none';
-        }
-
-        function closeModals() {
-            document.getElementById('modal-transaction').style.display = 'none';
-            document.getElementById('modal-friend').style.display = 'none';
-        }
-
-        function showTransactionModal(preSelectedType) {
-            const modal = document.getElementById('modal-transaction');
-            modal.style.display = 'flex';
-
-            const typeSelect = document.getElementById('t-type');
-            if (preSelectedType) {
-                typeSelect.value = preSelectedType;
-            }
-
-            // Define handler (named so we can remove it if needed, though simpler here to just overwrite or exist)
-            function handleTypeChange() {
-                const val = typeSelect.value;
-                document.getElementById('friend-selector-group').style.display = (val === 'lend' || val === 'repayment') ? 'block' : 'none';
-                document.getElementById('split-selector-group').style.display = (val === 'split') ? 'block' : 'none';
-
-                if (val === 'split') {
-                    // Trigger custom event for app.js to populate list if needed
-                    // For now, simpler: we assume app.js populated it or we modify app.js to populate on load
-                    // Let's just trigger a global refresh if it exists
-                    if (typeof refreshSplitList === 'function') refreshSplitList();
-                }
-            }
-
-            // Remove old listeners? Hard with anonymous functions. 
-            // Better: just set onchange property to avoid stacking listeners
-            typeSelect.onchange = handleTypeChange;
-
-            // Initial State
-            handleTypeChange();
-        }
-
-        function showAddFriendModal() {
-            document.getElementById('modal-friend').style.display = 'flex';
-        }
-    </script>
 </body>
 
 </html>

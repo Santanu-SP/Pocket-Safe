@@ -4,13 +4,20 @@ const STATE = {
     transactions: [],
     friends: [],
     settings: {
-        salaryAmount: 0,
+        salaryAmount: 3000, // Monthly Allowance
         salaryDate: 1, // Day of month (1-31)
         lastSalaryMonth: null // 'YYYY-MM' format
     },
-    balance: 0,
-    bankBalance: 0
+    savingsGoal: {
+        title: "Set a savings goal! 🎯",
+        target: 0,
+        current: 0
+    },
+    balance: 0
 };
+
+// Global variables for session/runtime
+let selectedRoommates = [];
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,7 +31,6 @@ function checkSession() {
     try { if (!session) session = JSON.parse(sessionStorage.getItem('debtTracker_session')); } catch (e) { }
 
     if (session && session.username) {
-        // Verify user exists
         const users = JSON.parse(localStorage.getItem('debtTracker_users') || '[]');
         const user = users.find(u => u.username === session.username);
 
@@ -33,7 +39,6 @@ function checkSession() {
             return;
         }
     }
-    // No session or invalid
     showAuthView();
 }
 
@@ -47,7 +52,7 @@ function showAuthView() {
 function showAppView() {
     document.getElementById('auth-view').style.display = 'none';
     document.getElementById('app-view').style.display = 'block';
-    initUI(); // Re-bind listeners just in case
+    initUI(); 
     renderAll();
 }
 
@@ -81,15 +86,10 @@ function handleLogin() {
         if (rememberMe) {
             localStorage.setItem('debtTracker_session', JSON.stringify({ username }));
         } else {
-            // For session-only, we can use sessionStorage or just memory. 
-            // But requested feature is "permanently logged in". 
-            // If they don't check it, we still need to know who they are for this reload.
-            // We'll use sessionStorage for non-permanent.
             sessionStorage.setItem('debtTracker_session', JSON.stringify({ username }));
-            localStorage.removeItem('debtTracker_session'); // Clear permanent if exists
+            localStorage.removeItem('debtTracker_session'); 
         }
         loginUser(username);
-        // Clear forms
         usernameInput.value = '';
         passwordInput.value = '';
     } else {
@@ -111,6 +111,11 @@ function handleRegister() {
         return;
     }
 
+    if (password.length < 6) {
+        alert("Password must be at least 6 characters");
+        return;
+    }
+
     if (password !== confirm) {
         alert("Passwords do not match");
         return;
@@ -122,166 +127,11 @@ function handleRegister() {
         return;
     }
 
-    // Create User
     users.push({ username, password });
     localStorage.setItem('debtTracker_users', JSON.stringify(users));
 
-    // Optional: Migrate legacy data to this first user
-    // if (users.length === 1 && localStorage.getItem('debtTrackerData')) {
-    //     localStorage.setItem(`debtTrackerData_${username}`, localStorage.getItem('debtTrackerData'));
-    // }
-
     alert("Account created! You can now login.");
     toggleAuthMode('login');
-}
-
-// --- REPORTS ---
-function renderReports() {
-    const filter = document.getElementById('reports-filter').value;
-    const now = new Date();
-    let startDate, endDate;
-
-    if (filter === 'this_month') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        document.getElementById('reports-date-display').textContent = startDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-    } else if (filter === 'last_month') {
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
-        document.getElementById('reports-date-display').textContent = startDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-    } else {
-        startDate = new Date(0); // Beginning of time
-        endDate = new Date(8640000000000000); // End of time
-        document.getElementById('reports-date-display').textContent = 'All Time';
-    }
-
-    let income = 0;
-    let expense = 0;
-    let categoryExpenses = {};
-
-    STATE.transactions.forEach(t => {
-        const tDate = new Date(t.date);
-        if (tDate >= startDate && tDate <= endDate) {
-            if (t.type === 'income' || t.type === 'salary') {
-                income += t.amount;
-            } else if (t.type === 'expense') {
-                expense += t.amount;
-                // Category Calculation
-                // Assuming desc might be used as category or we default to 'Uncategorized' if we don't have cat field
-                // Current app doesn't seem to have strict category field? Let's use 'desc' or generic.
-                // Looking at addTransaction, we don't have explicit category yet. 
-                // Let's fallback to grouping by distinct description words or just "General" if missing.
-                // WAIT: User mock showed categories like "Food", "Transport". 
-                // Since we don't have that field yet, let's auto-categorize by descriptions containing keywords
-                // or just show "General" for now to avoid breaking.
-                // *Self-correction*: For now, group by Description (Top 5) or just show Total.
-                // Better: Let's assume description is the category for now.
-                const cat = t.desc || 'Other';
-                categoryExpenses[cat] = (categoryExpenses[cat] || 0) + t.amount;
-            } else if (t.type === 'lend') {
-                // Lend counts as expense flow but asset. For report, maybe treat as expense or separate?
-                // User mock shows Income vs Expense. Let's count lend as expense for cash visuals.
-                expense += t.amount;
-                const cat = 'Lending';
-                categoryExpenses[cat] = (categoryExpenses[cat] || 0) + t.amount;
-            } else if (t.type === 'repayment') {
-                income += t.amount; // Repayment is cash in
-            }
-        }
-    });
-
-    // Update Stats
-    document.getElementById('report-income').textContent = formatCurrency(income);
-    document.getElementById('report-expense').textContent = formatCurrency(expense);
-    document.getElementById('report-savings').textContent = formatCurrency(income - expense);
-
-    // Update Bar Chart
-    const barContainer = document.getElementById('bar-chart-container');
-    const maxVal = Math.max(income, expense, 100); // Avoid div by zero
-    const incomeHeight = (income / maxVal) * 100;
-    const expenseHeight = (expense / maxVal) * 100;
-
-    // Animate bars (simple width/height set)
-    barContainer.innerHTML = `
-        <div class="bar-group">
-            <div class="bar" style="height:${incomeHeight}%; background:var(--success);"></div>
-            <div class="bar-label">Income</div>
-        </div>
-        <div class="bar-group">
-            <div class="bar" style="height:${expenseHeight}%; background:var(--danger);"></div>
-            <div class="bar-label">Expense</div>
-        </div>
-    `;
-
-    // Update Donut Chart
-    const donut = document.getElementById('category-donut');
-    const legend = document.getElementById('category-legend');
-
-    // Sort expenses
-    const sortedCats = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]).slice(0, 5); // Top 5
-    let conicStr = '';
-    let currentDeg = 0;
-    const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6']; // Amber, Blue, Emerald, Red, Violet
-    let legendHtml = '';
-
-    sortedCats.forEach((item, index) => {
-        const [cat, amt] = item;
-        const percent = (amt / expense) * 100;
-        const deg = (percent / 100) * 360;
-        const color = colors[index % colors.length];
-
-        conicStr += `${color} ${currentDeg}deg ${currentDeg + deg}deg, `;
-        currentDeg += deg;
-
-        legendHtml += `<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-            <div style="width:10px; height:10px; background:${color}; border-radius:50%;"></div>
-            <div>${cat} <span style="color:var(--text-secondary);">(${Math.round(percent)}%)</span></div>
-        </div>`;
-    });
-
-    // If no expense, gray ring
-    if (expense === 0) conicStr = 'var(--border-color) 0deg 360deg';
-    else conicStr = conicStr.slice(0, -2); // remove last comma
-
-    donut.style.background = `conic-gradient(${conicStr})`;
-    legend.innerHTML = legendHtml || '<div style="color:var(--text-secondary)">No expenses</div>';
-}
-
-// Ensure reports update when view switches
-const originalSwitchView = window.switchView;
-window.switchView = function (viewId, navEl) {
-    originalSwitchView(viewId, navEl);
-    if (viewId === 'view-reports') {
-        renderReports();
-    }
-}
-
-function loadDemoData() {
-    if (!confirm("This will replace current data with demo data. Continue?")) return;
-
-    const now = new Date();
-    const transactions = [
-        { id: 1, type: 'salary', amount: 50000, desc: 'Salary', date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString() },
-        { id: 2, type: 'expense', amount: 12000, desc: 'Rent', date: new Date(now.getFullYear(), now.getMonth(), 3).toISOString() },
-        { id: 3, type: 'expense', amount: 2500, desc: 'Groceries', date: new Date(now.getFullYear(), now.getMonth(), 5).toISOString() },
-        { id: 4, type: 'expense', amount: 1500, desc: 'Dining Out', date: new Date(now.getFullYear(), now.getMonth(), 7).toISOString() },
-        { id: 5, type: 'expense', amount: 800, desc: 'Transport', date: new Date(now.getFullYear(), now.getMonth(), 8).toISOString() },
-        { id: 6, type: 'expense', amount: 3000, desc: 'Shopping', date: new Date(now.getFullYear(), now.getMonth(), 10).toISOString() },
-        { id: 7, type: 'lend', amount: 2000, desc: 'Lend to Rahul', date: new Date(now.getFullYear(), now.getMonth(), 12).toISOString(), friendId: 1 },
-        { id: 8, type: 'repayment', amount: 1000, desc: 'Rahul Returned', date: new Date(now.getFullYear(), now.getMonth(), 15).toISOString(), friendId: 1 },
-        { id: 9, type: 'expense', amount: 450, desc: 'Coffee', date: new Date(now.getFullYear(), now.getMonth(), 18).toISOString() },
-        { id: 10, type: 'expense', amount: 1200, desc: 'Groceries', date: new Date(now.getFullYear(), now.getMonth(), 20).toISOString() }
-    ];
-
-    STATE.transactions = transactions;
-    STATE.balance = 50000 - 12000 - 2500 - 1500 - 800 - 3000 - 2000 + 1000 - 450 - 1200; // Approx calc
-    STATE.friends = [{ id: 1, name: 'Rahul', balance: 1000 }];
-
-    saveData();
-    recalculateBalance(); // To be precise
-    renderDashboard();
-    renderReports();
-    alert("Demo data loaded!");
 }
 
 function handleLogout() {
@@ -305,10 +155,10 @@ function loadData() {
     const key = `debtTrackerData_${STATE.currentUser}`;
     const data = localStorage.getItem(key);
 
-    // Default Empty State
     STATE.transactions = [];
     STATE.friends = [];
-    STATE.settings = { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null };
+    STATE.settings = { salaryAmount: 3000, salaryDate: 1, lastSalaryMonth: null };
+    STATE.savingsGoal = { title: "Set a savings goal! 🎯", target: 0, current: 0 };
     STATE.balance = 0;
 
     if (data) {
@@ -316,6 +166,7 @@ function loadData() {
         STATE.transactions = parsed.transactions || [];
         STATE.friends = parsed.friends || [];
         STATE.settings = parsed.settings || STATE.settings;
+        STATE.savingsGoal = parsed.savingsGoal || STATE.savingsGoal;
     }
     recalculateBalance();
 }
@@ -327,40 +178,286 @@ function saveData() {
     localStorage.setItem(key, JSON.stringify({
         transactions: STATE.transactions,
         friends: STATE.friends,
-        settings: STATE.settings
+        settings: STATE.settings,
+        savingsGoal: STATE.savingsGoal
     }));
     renderAll();
 }
 
 function recalculateBalance() {
     let balance = 0;
-    // We assume 'bankBalance' is partially derived or manually adjusted, 
-    // but for this simple app, we'll calculate 'Balance' as sum of all income - expenses
-    // 'Lend' counts as expense from wallet, but adds to debt asset.
+    let savingsTotal = 0;
 
     STATE.transactions.forEach(t => {
         if (t.type === 'income' || t.type === 'salary' || t.type === 'repayment') {
             balance += t.amount;
-        } else if (t.type === 'expense' || t.type === 'lend') {
+        } else if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
             balance -= t.amount;
+        }
+
+        if (t.type === 'savings_deposit') {
+            savingsTotal += t.amount;
         }
     });
 
     STATE.balance = balance;
-    // For simplicity in this version, Bank Balance tracks Salary additions less any explicit transfers (not implemented), 
-    // so we will just show Total Balance for now in the main view.
+    if (STATE.savingsGoal) {
+        STATE.savingsGoal.current = savingsTotal;
+    }
 }
 
 function clearAllData() {
-    if (confirm("Are you sure you want to delete all data? This cannot be undone.")) {
-        localStorage.removeItem('debtTrackerData');
+    if (confirm("Are you sure you want to delete all user settings and transactions? This cannot be undone.")) {
+        if (STATE.currentUser) {
+            localStorage.removeItem(`debtTrackerData_${STATE.currentUser}`);
+        }
         location.reload();
     }
 }
 
-// --- CORE LOGIC ---
+// --- STUDENT SAVINGS ASSISTANT LOGIC ---
 
-function addTransaction(keepOpen = false) {
+function updateDailyDial() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const currentDay = today.getDate();
+    const remainingDays = totalDays - currentDay + 1;
+
+    const target = STATE.savingsGoal ? STATE.savingsGoal.target || 0 : 0;
+    const current = STATE.savingsGoal ? STATE.savingsGoal.current || 0 : 0;
+    const savingsNeeded = Math.max(0, target - current);
+
+    const walletBalance = STATE.balance;
+
+    // Daily safe-to-spend limit formula
+    let safeToSpend = 0;
+    if (remainingDays > 0) {
+        safeToSpend = (walletBalance - savingsNeeded) / remainingDays;
+    }
+    
+    if (safeToSpend < 0) {
+        safeToSpend = 0;
+    }
+
+    const safeEl = document.getElementById('safe-to-spend');
+    if (safeEl) {
+        safeEl.textContent = formatCurrency(safeToSpend);
+    }
+
+    const dailyAverage = (STATE.settings.salaryAmount || 3000) / totalDays;
+    const percent = Math.min(100, Math.max(0, (safeToSpend / dailyAverage) * 100));
+    
+    const dial = document.getElementById('budget-progress-dial');
+    if (dial) {
+        dial.style.background = `conic-gradient(var(--primary) 0% ${percent}%, var(--accent) ${percent}%, var(--border-color) ${percent}% 100%)`;
+    }
+
+    // Display Alert Warning if wallet is lower than what's needed for the active goal
+    const warningAlert = document.getElementById('quick-settlement-alert');
+    if (warningAlert) {
+        if (walletBalance < savingsNeeded) {
+            warningAlert.textContent = "⚠️ Wallet too low for goal!";
+            warningAlert.style.color = "var(--danger)";
+        } else {
+            warningAlert.textContent = "";
+        }
+    }
+}
+
+function updateSavingsGoalUI() {
+    const goalCard = document.getElementById('savings-goal-card');
+    if (!goalCard) return;
+
+    if (!STATE.savingsGoal) {
+        STATE.savingsGoal = { title: "Set a savings goal! 🎯", target: 0, current: 0 };
+    }
+
+    const title = STATE.savingsGoal.title || "Set a savings goal! 🎯";
+    const target = STATE.savingsGoal.target || 0;
+    const current = STATE.savingsGoal.current || 0;
+
+    document.getElementById('goal-title-display').textContent = title;
+    document.getElementById('goal-progress-values').textContent = `${formatCurrency(current)} / ${formatCurrency(target)}`;
+
+    const bar = document.getElementById('goal-progress-bar');
+    if (bar) {
+        const percent = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+        bar.style.width = `${percent}%`;
+    }
+
+    const status = document.getElementById('goal-days-status');
+    if (status) {
+        if (target === 0) {
+            status.textContent = "Open setup tab to configure a savings goal!";
+            status.style.color = "var(--text-secondary)";
+        } else if (current >= target) {
+            status.textContent = "🎉 Savings goal achieved! Awesome!";
+            status.style.color = "var(--success)";
+        } else {
+            const left = target - current;
+            status.textContent = `${formatCurrency(left)} left to reach your goal.`;
+            status.style.color = "var(--text-secondary)";
+        }
+    }
+}
+
+function saveSavingsGoal() {
+    const titleInput = document.getElementById('goal-title-input');
+    const targetInput = document.getElementById('goal-target-input');
+
+    const title = titleInput.value.trim();
+    const target = parseFloat(targetInput.value);
+
+    if (!title || isNaN(target) || target < 0) {
+        alert("Please enter valid goal details.");
+        return;
+    }
+
+    if (!STATE.savingsGoal) {
+        STATE.savingsGoal = { title: "", target: 0, current: 0 };
+    }
+    STATE.savingsGoal.title = title;
+    STATE.savingsGoal.target = target;
+    
+    alert("Savings goal updated!");
+    saveData();
+}
+
+function depositToSavings() {
+    const amtInput = document.getElementById('goal-deposit-input');
+    const amount = parseFloat(amtInput.value);
+
+    if (isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid deposit amount.");
+        return;
+    }
+
+    if (amount > STATE.balance) {
+        alert("Insufficient wallet balance to deposit.");
+        return;
+    }
+
+    const targetTitle = STATE.savingsGoal ? STATE.savingsGoal.title : "Savings Goal";
+    
+    // Log saving transaction
+    STATE.transactions.unshift({
+        id: Date.now(),
+        date: new Date().toISOString(),
+        desc: `Deposit to: ${targetTitle}`,
+        amount: amount,
+        type: 'savings_deposit'
+    });
+
+    amtInput.value = '';
+    recalculateBalance();
+    saveData();
+    alert(`Deposited ${formatCurrency(amount)} into savings goal!`);
+}
+
+// --- ROOMMATE SPLIT BUBBLES UI ---
+
+function renderQuickSplitBubbles() {
+    const container = document.getElementById('quick-split-bubbles');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (STATE.friends.length === 0) {
+        container.innerHTML = '<div style="font-size:0.75rem; color:var(--text-secondary); padding:6px 0;">No roommates added yet. Go to Friends view to add.</div>';
+        return;
+    }
+
+    STATE.friends.forEach(f => {
+        const bubble = document.createElement('div');
+        bubble.className = `roommate-bubble ${selectedRoommates.includes(f.id) ? 'selected' : ''}`;
+        bubble.onclick = () => toggleRoommateBubble(f.id);
+
+        const initials = f.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+        bubble.innerHTML = `
+            <div class="roommate-avatar">
+                ${initials}
+                <div class="roommate-avatar-check">✓</div>
+            </div>
+            <div class="roommate-name">${f.name}</div>
+        `;
+        container.appendChild(bubble);
+    });
+}
+
+function toggleRoommateBubble(id) {
+    const idx = selectedRoommates.indexOf(id);
+    if (idx > -1) {
+        selectedRoommates.splice(idx, 1);
+    } else {
+        selectedRoommates.push(id);
+    }
+    renderQuickSplitBubbles();
+}
+
+// --- 1-TAP QUICK SPENDING ACTIONS ---
+
+function quickLogTemplate(desc, amount) {
+    if (isNaN(amount) || amount <= 0) return;
+
+    if (selectedRoommates.length > 0) {
+        // Splitting 1-Click Action
+        const participants = selectedRoommates.length + 1;
+        const splitAmount = amount / participants;
+
+        selectedRoommates.forEach(fid => {
+            updateFriendDebt(fid, splitAmount);
+        });
+
+        STATE.transactions.unshift({
+            id: Date.now(),
+            date: new Date().toISOString(),
+            desc: `${desc} (Split)`,
+            amount: amount,
+            type: 'split',
+            splitDetails: {
+                totalParticipants: participants,
+                amountPerPerson: splitAmount,
+                involvedFriendIds: [...selectedRoommates],
+                includedMe: true
+            }
+        });
+    } else {
+        // Personal Spend 1-Click Action
+        STATE.transactions.unshift({
+            id: Date.now(),
+            date: new Date().toISOString(),
+            desc: desc,
+            amount: amount,
+            type: 'expense'
+        });
+    }
+
+    selectedRoommates = [];
+    const quickAmtInput = document.getElementById('quick-amount');
+    if (quickAmtInput) quickAmtInput.value = '';
+
+    recalculateBalance();
+    saveData();
+}
+
+function handleQuickAdd() {
+    const amtInput = document.getElementById('quick-amount');
+    const amount = parseFloat(amtInput.value);
+
+    if (isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid amount.");
+        return;
+    }
+
+    quickLogTemplate("Quick Spend", amount);
+}
+
+// --- DETAILED TRANSACTION SYSTEM ---
+
+function addTransaction() {
     const descInput = document.getElementById('t-desc');
     const amountInput = document.getElementById('t-amount');
     const typeInput = document.getElementById('t-type');
@@ -371,7 +468,7 @@ function addTransaction(keepOpen = false) {
     const type = typeInput.value;
 
     if (!desc || isNaN(amount) || amount <= 0) {
-        alert("Please enter valid description and amount");
+        alert("Please enter a valid description and amount");
         return;
     }
 
@@ -386,7 +483,7 @@ function addTransaction(keepOpen = false) {
     if (type === 'lend') {
         const friendId = parseInt(friendInput.value);
         if (!friendId) {
-            alert("Please select a friend to lend to");
+            alert("Select a friend to lend to");
             return;
         }
         transaction.friendId = friendId;
@@ -394,14 +491,12 @@ function addTransaction(keepOpen = false) {
     } else if (type === 'repayment') {
         const friendId = parseInt(friendInput.value);
         if (!friendId) {
-            alert("Please select the friend who is paying back");
+            alert("Select the friend paying back");
             return;
         }
         transaction.friendId = friendId;
-        // Reducing debt means adding a negative amount to their balance (since positive balance = they owe me)
         updateFriendDebt(friendId, -amount);
     } else if (type === 'split') {
-        // Handle Split
         const includeMe = document.getElementById('split-include-me').checked;
         const checkboxes = document.querySelectorAll('#split-friends-list input[type="checkbox"]:checked');
         const selectedFriendIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
@@ -409,13 +504,12 @@ function addTransaction(keepOpen = false) {
         const totalParticipants = selectedFriendIds.length + (includeMe ? 1 : 0);
 
         if (totalParticipants === 0) {
-            alert("Please select at least one person to split with.");
+            alert("Select at least one friend to split with.");
             return;
         }
 
         const splitAmount = amount / totalParticipants;
 
-        // Metadata for the transaction
         transaction.splitDetails = {
             totalParticipants,
             amountPerPerson: splitAmount,
@@ -423,54 +517,19 @@ function addTransaction(keepOpen = false) {
             includedMe: includeMe
         };
 
-        // Update Debts: Each friend owes me 'splitAmount'
-        // (Assuming I paid the full 'amount')
         selectedFriendIds.forEach(fid => {
             updateFriendDebt(fid, splitAmount);
         });
     }
 
-    STATE.transactions.unshift(transaction); // Add to top
+    STATE.transactions.unshift(transaction);
     recalculateBalance();
     saveData();
 
-    if (keepOpen) {
-        // Reset specific fields but keep type/friend context
-        descInput.value = '';
-        amountInput.value = '';
-        descInput.focus();
-        // Optional: Provide subtle feedback or just trust the clear + focus
-        // Making it clear:
-        // alert("Added! You can add another."); // A bit intrusive
-        // Let's stick to non-intrusive flow:
-    } else {
-        // Reset and Close
-        descInput.value = '';
-        amountInput.value = '';
-        closeModals();
-    }
-}
-
-// Make this global so index.html can call it
-window.refreshSplitList = renderSplitFriendList;
-
-function renderSplitFriendList() {
-    const container = document.getElementById('split-friends-list');
-    if (!container) return;
-
-    container.innerHTML = '';
-    STATE.friends.forEach(f => {
-        const div = document.createElement('div');
-        div.style.display = 'flex';
-        div.style.alignItems = 'center';
-        div.style.marginBottom = '8px';
-
-        div.innerHTML = `
-            <input type="checkbox" id="split-friend-${f.id}" value="${f.id}" style="width:20px; margin-right:8px;">
-            <label for="split-friend-${f.id}" style="margin:0;">${f.name}</label>
-        `;
-        container.appendChild(div);
-    });
+    // Reset fields & dismiss bottom sheet
+    descInput.value = '';
+    amountInput.value = '';
+    closeModals();
 }
 
 function addFriend() {
@@ -482,11 +541,11 @@ function addFriend() {
     const newFriend = {
         id: Date.now(),
         name: name,
-        balance: 0 // Positive means they owe me
+        balance: 0 // Positive = they owe user
     };
 
     STATE.friends.push(newFriend);
-    saveData(); // Will trigger render which populates dropdown
+    saveData();
 
     nameInput.value = '';
     closeModals();
@@ -500,30 +559,24 @@ function updateFriendDebt(friendId, amountAdded) {
 }
 
 function settleFriendDebt(friendId, friendName, amount) {
-    if (!confirm(`Mark ${friendName}'s debt of ${formatCurrency(amount)} as fully paid?`)) return;
+    if (!confirm(`Mark ${friendName}'s debt of ${formatCurrency(amount)} as fully settled?`)) return;
 
-    // Create Repayment Transaction
     STATE.transactions.unshift({
         id: Date.now(),
         date: new Date().toISOString(),
-        desc: `Full Settlement from ${friendName}`,
+        desc: `Settle with ${friendName}`,
         amount: amount,
         type: 'repayment',
         friendId: friendId
     });
 
-    // Update Friend Logic
     updateFriendDebt(friendId, -amount);
-
-    // Update Balance
     recalculateBalance();
     saveData();
-
-    // Feedback (Optional since UI updates immediately)
-    // alert("Settled!"); 
 }
 
-// --- SALARY AUTOMATION ---
+// --- STUDENT ALLOWANCE LOGIC ---
+
 function saveSalaryConfig() {
     const amount = parseFloat(document.getElementById('salary-input').value);
     const date = parseInt(document.getElementById('salary-date').value);
@@ -533,46 +586,238 @@ function saveSalaryConfig() {
     STATE.settings.salaryAmount = amount;
     STATE.settings.salaryDate = date;
 
-    alert("Salary settings saved!");
+    alert("Allowance settings saved!");
     saveData();
-    checkSalaryAutoAdd(); // Check immediately in case today is the day
+    checkSalaryAutoAdd(); 
 }
 
 function checkSalaryAutoAdd() {
     const today = new Date();
-    const currentMonthStr = `${today.getFullYear()}-${today.getMonth() + 1}`; // "2023-10"
+    const currentMonthStr = `${today.getFullYear()}-${today.getMonth() + 1}`; 
 
-    // If we haven't added salary for this month yet
     if (STATE.settings.lastSalaryMonth !== currentMonthStr && STATE.settings.salaryAmount > 0) {
-        // If today is past or equal to the salary date
         if (today.getDate() >= STATE.settings.salaryDate) {
-
-            // Add Salary Transaction
             STATE.transactions.unshift({
                 id: Date.now(),
                 date: new Date().toISOString(),
-                desc: 'Monthly Salary (Auto)',
+                desc: 'Monthly Allowance (Auto Received)',
                 amount: STATE.settings.salaryAmount,
                 type: 'salary'
             });
 
-            // Update State
             STATE.settings.lastSalaryMonth = currentMonthStr;
             recalculateBalance();
             saveData();
-
-            alert(`Salary of $${STATE.settings.salaryAmount} added automatically for this month!`);
+            alert(`Allowance of ${formatCurrency(STATE.settings.salaryAmount)} added automatically!`);
         }
     }
 }
 
+// --- INTERACTIVE REPORT GRAPHICS ---
 
-// --- UI RENDERING ---
+function getCategoryFromDesc(desc, type) {
+    if (type === 'lend') return 'Lending 💸';
+    if (type === 'savings_deposit') return 'Savings Goal 🎯';
+    
+    const d = desc.toLowerCase();
+    if (d.includes('tea') || d.includes('coffee') || d.includes('chai')) return 'Chai & Cafe ☕';
+    if (d.includes('maggi') || d.includes('canteen') || d.includes('lunch') || d.includes('dinner') || d.includes('food') || d.includes('eat')) return 'Food & Canteen 🍛';
+    if (d.includes('auto') || d.includes('cab') || d.includes('metro') || d.includes('bus') || d.includes('rickshaw')) return 'Transit & Auto 🛺';
+    if (d.includes('xerox') || d.includes('book') || d.includes('print') || d.includes('fee') || d.includes('pen') || d.includes('exam')) return 'Academics 📚';
+    if (d.includes('room') || d.includes('rent') || d.includes('wifi') || d.includes('net') || d.includes('electricity')) return 'Hostel Bills 🏠';
+    if (d.includes('split')) return 'Roomie Splits 👥';
+    return 'Other Expense 🎁';
+}
+
+function renderReports() {
+    const filter = document.getElementById('reports-filter').value;
+    const now = new Date();
+    let startDate, endDate;
+
+    if (filter === 'this_month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        document.getElementById('reports-date-display').textContent = startDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    } else if (filter === 'last_month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        document.getElementById('reports-date-display').textContent = startDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    } else {
+        startDate = new Date(0); 
+        endDate = new Date(8640000000000000); 
+        document.getElementById('reports-date-display').textContent = 'All Time';
+    }
+
+    let income = 0;
+    let expense = 0;
+    let categoryExpenses = {};
+
+    STATE.transactions.forEach(t => {
+        const tDate = new Date(t.date);
+        if (tDate >= startDate && tDate <= endDate) {
+            if (t.type === 'income' || t.type === 'salary' || t.type === 'repayment') {
+                income += t.amount;
+            } else if (t.type === 'expense' || t.type === 'split' || t.type === 'savings_deposit' || t.type === 'lend') {
+                let actualCost = t.amount;
+                // For split details, only count the user's portion
+                if (t.type === 'split' && t.splitDetails) {
+                    actualCost = t.splitDetails.amountPerPerson;
+                }
+                expense += actualCost;
+
+                const cat = getCategoryFromDesc(t.desc, t.type);
+                categoryExpenses[cat] = (categoryExpenses[cat] || 0) + actualCost;
+            }
+        }
+    });
+
+    document.getElementById('report-income').textContent = formatCurrency(income);
+    document.getElementById('report-expense').textContent = formatCurrency(expense);
+    document.getElementById('report-savings').textContent = formatCurrency(income - expense);
+
+    // Bar Chart
+    const barContainer = document.getElementById('bar-chart-container');
+    const maxVal = Math.max(income, expense, 100); 
+    const incomeHeight = (income / maxVal) * 100;
+    const expenseHeight = (expense / maxVal) * 100;
+
+    barContainer.innerHTML = `
+        <div class="bar-group">
+            <div class="bar" style="height:${incomeHeight}%; background:var(--success);"></div>
+            <div class="bar-label">Inflow</div>
+        </div>
+        <div class="bar-group">
+            <div class="bar" style="height:${expenseHeight}%; background:var(--danger);"></div>
+            <div class="bar-label">Outflow</div>
+        </div>
+    `;
+
+    // Donut Chart
+    const donut = document.getElementById('category-donut');
+    const legend = document.getElementById('category-legend');
+
+    const sortedCats = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]).slice(0, 5); 
+    let conicStr = '';
+    let currentDeg = 0;
+    const colors = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#f43f5e']; 
+    let legendHtml = '';
+
+    sortedCats.forEach((item, index) => {
+        const [cat, amt] = item;
+        const percent = (expense > 0) ? (amt / expense) * 100 : 0;
+        const deg = (percent / 100) * 360;
+        const color = colors[index % colors.length];
+
+        conicStr += `${color} ${currentDeg}deg ${currentDeg + deg}deg, `;
+        currentDeg += deg;
+
+        legendHtml += `<div class="legend-item">
+            <div class="legend-dot" style="background:${color};"></div>
+            <div>${cat} <span style="color:var(--text-secondary); font-weight:600;">(${Math.round(percent)}%)</span></div>
+        </div>`;
+    });
+
+    if (expense === 0) conicStr = 'var(--border-color) 0deg 360deg';
+    else conicStr = conicStr.slice(0, -2); 
+
+    donut.style.background = `conic-gradient(${conicStr})`;
+    legend.innerHTML = legendHtml || '<div style="color:var(--text-secondary); font-weight:600;">No spending logged</div>';
+}
+
+// --- NAVIGATION & ROUTING ---
+function switchView(viewId, navEl) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    const targetView = document.getElementById(viewId);
+    if (targetView) targetView.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    if (navEl) navEl.classList.add('active');
+
+    const fab = document.getElementById('add-transaction-btn');
+    if (fab) {
+        if (viewId === 'view-dashboard') fab.style.display = 'flex';
+        else fab.style.display = 'none';
+    }
+
+    if (viewId === 'view-reports') {
+        renderReports();
+    }
+}
+
+function closeModals() {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.style.display = 'none');
+}
+
+function showTransactionModal(preSelectedType) {
+    const modal = document.getElementById('modal-transaction');
+    modal.style.display = 'block';
+
+    const typeSelect = document.getElementById('t-type');
+    if (preSelectedType) {
+        typeSelect.value = preSelectedType;
+    }
+
+    function handleTypeChange() {
+        const val = typeSelect.value;
+        document.getElementById('friend-selector-group').style.display = (val === 'lend' || val === 'repayment') ? 'block' : 'none';
+        document.getElementById('split-selector-group').style.display = (val === 'split') ? 'block' : 'none';
+
+        if (val === 'split') {
+            refreshSplitList();
+        }
+    }
+
+    typeSelect.onchange = handleTypeChange;
+    handleTypeChange();
+}
+
+function showAddFriendModal() {
+    document.getElementById('modal-friend').style.display = 'block';
+}
+
+// --- STUDENT DEMO SETUP ---
+
+function loadDemoData() {
+    if (!confirm("This will replace current data with student demo data. Continue?")) return;
+
+    const now = new Date();
+    
+    STATE.settings.salaryAmount = 8000; // Parents allowance
+    STATE.settings.salaryDate = 1;
+    STATE.settings.lastSalaryMonth = `${now.getFullYear()}-${now.getMonth() + 1}`;
+
+    STATE.savingsGoal = {
+        title: "Noise Earphones 🎧",
+        target: 2500,
+        current: 500
+    };
+
+    STATE.friends = [
+        { id: 1, name: "Rahul Roomie", balance: 180 },
+        { id: 2, name: "Amit Btech", balance: 0 },
+        { id: 3, name: "Sneha Hostel A", balance: -50 }
+    ];
+
+    STATE.transactions = [
+        { id: 101, type: 'salary', amount: 8000, desc: 'Pocket Money from Dad', date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString() },
+        { id: 102, type: 'savings_deposit', amount: 500, desc: 'Deposit to: Noise Earphones 🎧', date: new Date(now.getFullYear(), now.getMonth(), 2).toISOString() },
+        { id: 103, type: 'expense', amount: 1500, desc: 'Hostel Wifi bill', date: new Date(now.getFullYear(), now.getMonth(), 3).toISOString() },
+        { id: 104, type: 'split', amount: 360, desc: 'Canteen Lunch', date: new Date(now.getFullYear(), now.getMonth(), 5).toISOString(), splitDetails: { totalParticipants: 2, amountPerPerson: 180, involvedFriendIds: [1], includedMe: true } },
+        { id: 105, type: 'expense', amount: 40, desc: 'Chai & Samosa', date: new Date(now.getFullYear(), now.getMonth(), 5).toISOString() },
+        { id: 106, type: 'lend', amount: 50, desc: 'Lent for Xerox Sneha', date: new Date(now.getFullYear(), now.getMonth(), 6).toISOString(), friendId: 3 },
+        { id: 107, type: 'expense', amount: 60, desc: 'Auto auto charge', date: new Date(now.getFullYear(), now.getMonth(), 7).toISOString() }
+    ];
+
+    recalculateBalance();
+    saveData();
+    alert("Student demo profiles loaded! Allowance set to ₹8,000, goal set, and balances updated.");
+}
+
+// --- UI POPULATORS ---
 
 function initUI() {
-    // Populate Date Select
     const dateSelect = document.getElementById('salary-date');
-    if (dateSelect.options.length > 0) return; // Already initialized
+    if (dateSelect.options.length > 0) return; 
 
     for (let i = 1; i <= 31; i++) {
         const opt = document.createElement('option');
@@ -581,10 +826,7 @@ function initUI() {
         dateSelect.appendChild(opt);
     }
 
-    // Attach Listeners not handled by inline onclicks
     const saveBtn = document.getElementById('save-salary-btn');
-    // distinct from other listeners, let's just make sure we don't double bind if we use cloneNode or named function
-    // simpler: just remove old listener if possible, but here we can just rely on the 'Already initialized' check above.
     saveBtn.addEventListener('click', saveSalaryConfig);
 }
 
@@ -594,38 +836,46 @@ function renderAll() {
     renderSettings();
     renderFriendDropdown();
     renderSplitFriendList();
+    renderQuickSplitBubbles();
+    updateDailyDial();
+    updateSavingsGoalUI();
 }
 
 function renderDashboard() {
-    document.getElementById('total-balance').textContent = formatCurrency(STATE.balance);
+    document.getElementById('parent-allowance').textContent = formatCurrency(STATE.settings.salaryAmount || 0);
+    document.getElementById('total-wallet').textContent = formatCurrency(STATE.balance);
+    document.getElementById('saved-money').textContent = formatCurrency(STATE.savingsGoal ? STATE.savingsGoal.current || 0 : 0);
 
-    // Calculate total owed by friends
     let friendsOwed = 0;
     STATE.friends.forEach(f => {
         if (f.balance > 0) friendsOwed += f.balance;
     });
-    const owedEl = document.getElementById('dashboard-owed');
-    if (owedEl) owedEl.textContent = formatCurrency(friendsOwed);
-
-    // document.getElementById('bank-balance').textContent = formatCurrency(STATE.balance); // Simplified
 
     const list = document.getElementById('recent-transactions');
     list.innerHTML = '';
 
     if (STATE.transactions.length === 0) {
-        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;">No transactions yet</li>';
+        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;font-size:0.9rem;">No transactions yet</li>';
         return;
     }
 
-    STATE.transactions.slice(0, 20).forEach(t => {
+    STATE.transactions.slice(0, 4).forEach(t => {
         const li = document.createElement('li');
         li.className = 'list-item';
 
         let colorClass = 'amount-positive';
         let prefix = '+';
-        if (t.type === 'expense' || t.type === 'lend') {
+        let amount = t.amount;
+
+        if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
             colorClass = 'amount-negative';
             prefix = '-';
+        } else if (t.type === 'split') {
+            colorClass = 'amount-negative';
+            prefix = '-';
+            if (t.splitDetails) {
+                amount = t.splitDetails.amountPerPerson;
+            }
         }
 
         const dateObj = new Date(t.date);
@@ -633,10 +883,10 @@ function renderDashboard() {
 
         li.innerHTML = `
             <div>
-                <div style="font-weight:600;">${t.desc}</div>
-                <div style="font-size:0.75rem; color:var(--text-secondary);">${dateStr} • ${t.type.toUpperCase()}</div>
+                <div style="font-weight:700; font-size:0.9rem;">${t.desc}</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${dateStr} • ${t.type.toUpperCase()}</div>
             </div>
-            <div class="${colorClass}">${prefix}${formatCurrency(t.amount)}</div>
+            <div class="${colorClass}">${prefix}${formatCurrency(amount)}</div>
         `;
         list.appendChild(li);
     });
@@ -644,6 +894,7 @@ function renderDashboard() {
 
 function renderFriends() {
     const list = document.getElementById('friends-list');
+    if (!list) return;
     list.innerHTML = '';
 
     let totalOwed = 0;
@@ -656,13 +907,13 @@ function renderFriends() {
 
         let actionHtml = '';
         if (f.balance > 0) {
-            actionHtml = `<button onclick="settleFriendDebt(${f.id}, '${f.name.replace(/'/g, "\\'")}', ${f.balance})" style="padding:4px 8px; font-size:0.75rem; background:var(--bg-color); color:var(--success); border:1px solid var(--success); border-radius:6px; margin-left:8px; cursor:pointer;">Settle</button>`;
+            actionHtml = `<button onclick="settleFriendDebt(${f.id}, '${f.name.replace(/'/g, "\\'")}', ${f.balance})" style="padding:6px 12px; font-size:0.75rem; font-weight:700; background:none; border:1px solid var(--success); color:var(--success); border-radius:8px; cursor:pointer; width:auto;">Settle</button>`;
         }
 
         li.innerHTML = `
             <div style="flex:1;">
-                <div style="font-weight:600;">${f.name}</div>
-                <div style="color: ${f.balance > 0 ? 'var(--success)' : 'var(--text-secondary)'}">
+                <div style="font-weight:700; font-size:0.95rem;">${f.name}</div>
+                <div style="color: ${f.balance > 0 ? 'var(--success)' : 'var(--text-secondary)'}; font-size:0.8rem; font-weight:600;">
                     ${f.balance > 0 ? 'Owes you: ' : 'Settled'} ${formatCurrency(f.balance)}
                 </div>
             </div>
@@ -677,19 +928,17 @@ function renderFriends() {
 function renderSettings() {
     document.getElementById('salary-input').value = STATE.settings.salaryAmount || '';
     document.getElementById('salary-date').value = STATE.settings.salaryDate || 1;
+
+    if (STATE.savingsGoal) {
+        document.getElementById('goal-title-input').value = STATE.savingsGoal.title || '';
+        document.getElementById('goal-target-input').value = STATE.savingsGoal.target || '';
+    }
 }
 
-
 function showHistoryView() {
-    // Switch view manually here as it's a sub-view of sorts, or just use switchView if we add it to navigation?
-    // The HTML has a back button that calls switchView('view-dashboard', ...). 
-    // So we can just show the div. But let's use the standard class switching.
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     document.getElementById('view-history').classList.add('active');
-
-    // Update nav to deselect all valid nav items since we are in a sub-view
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-
     renderHistoryView();
 }
 
@@ -699,19 +948,18 @@ function renderHistoryView() {
     list.innerHTML = '';
 
     const now = new Date();
-    let cutoffDate = new Date(0); // Default all time
+    let cutoffDate = new Date(0); 
 
-    if (filterVal === '1year') {
-        cutoffDate.setFullYear(now.getFullYear() - 1);
-    } else if (filterVal === '30days') {
+    if (filterVal === '30days') {
         cutoffDate.setDate(now.getDate() - 30);
+    } else if (filterVal === '1year') {
+        cutoffDate.setFullYear(now.getFullYear() - 1);
     }
-    // 'all' leaves cutoffDate as epoch
 
     const filtered = STATE.transactions.filter(t => new Date(t.date) >= cutoffDate);
 
     if (filtered.length === 0) {
-        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;">No matching transactions</li>';
+        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;font-size:0.9rem;">No matching transactions</li>';
         return;
     }
 
@@ -721,9 +969,17 @@ function renderHistoryView() {
 
         let colorClass = 'amount-positive';
         let prefix = '+';
-        if (t.type === 'expense' || t.type === 'lend') {
+        let amount = t.amount;
+
+        if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
             colorClass = 'amount-negative';
             prefix = '-';
+        } else if (t.type === 'split') {
+            colorClass = 'amount-negative';
+            prefix = '-';
+            if (t.splitDetails) {
+                amount = t.splitDetails.amountPerPerson;
+            }
         }
 
         const dateObj = new Date(t.date);
@@ -731,10 +987,10 @@ function renderHistoryView() {
 
         li.innerHTML = `
             <div>
-                <div style="font-weight:600;">${t.desc}</div>
-                <div style="font-size:0.75rem; color:var(--text-secondary);">${dateStr} • ${t.type.toUpperCase()}</div>
+                <div style="font-weight:700; font-size:0.9rem;">${t.desc}</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${dateStr} • ${t.type.toUpperCase()}</div>
             </div>
-            <div class="${colorClass}">${prefix}${formatCurrency(t.amount)}</div>
+            <div class="${colorClass}">${prefix}${formatCurrency(amount)}</div>
         `;
         list.appendChild(li);
     });
@@ -742,14 +998,13 @@ function renderHistoryView() {
 
 function exportHistoryToCSV() {
     const filterVal = document.getElementById('history-filter').value;
-
     const now = new Date();
     let cutoffDate = new Date(0);
 
-    if (filterVal === '1year') {
-        cutoffDate.setFullYear(now.getFullYear() - 1);
-    } else if (filterVal === '30days') {
+    if (filterVal === '30days') {
         cutoffDate.setDate(now.getDate() - 30);
+    } else if (filterVal === '1year') {
+        cutoffDate.setFullYear(now.getFullYear() - 1);
     }
 
     const filtered = STATE.transactions.filter(t => new Date(t.date) >= cutoffDate);
@@ -759,14 +1014,11 @@ function exportHistoryToCSV() {
         return;
     }
 
-    // CSV Header
     let csvContent = "Date,Description,Type,Amount,Friend\n";
 
     filtered.forEach(t => {
         const dateObj = new Date(t.date);
         const dateStr = `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')}`;
-
-        // Escape quotes in description
         const desc = `"${t.desc.replace(/"/g, '""')}"`;
 
         let friendName = "";
@@ -792,14 +1044,14 @@ function exportHistoryToCSV() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `transactions_${filterVal}_${now.toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `PocketSafe_transactions_${now.toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// --- THEME LOGIC ---
+// --- THEME UTILS ---
 function initTheme() {
     const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -832,7 +1084,6 @@ function updateThemeIcon() {
     const sun = document.getElementById('icon-sun');
     const moon = document.getElementById('icon-moon');
 
-    // In dark mode, show sun (to switch to light)
     if (isDark) {
         if (sun) sun.style.display = 'block';
         if (moon) moon.style.display = 'none';
@@ -842,18 +1093,40 @@ function updateThemeIcon() {
     }
 }
 
-// Call on load
 initTheme();
 
+// --- DROPDOWN POPULATORS ---
 
 function renderFriendDropdown() {
     const select = document.getElementById('t-friend-select');
+    if (!select) return;
     select.innerHTML = '<option value="">-- Select Friend --</option>';
     STATE.friends.forEach(f => {
         const opt = document.createElement('option');
         opt.value = f.id;
         opt.text = f.name;
         select.appendChild(opt);
+    });
+}
+
+window.refreshSplitList = renderSplitFriendList;
+
+function renderSplitFriendList() {
+    const container = document.getElementById('split-friends-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    STATE.friends.forEach(f => {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.marginBottom = '8px';
+
+        div.innerHTML = `
+            <input type="checkbox" id="split-friend-${f.id}" value="${f.id}" style="width:18px; height:18px; margin-right:8px; accent-color: var(--primary);">
+            <label for="split-friend-${f.id}" style="margin:0;">${f.name}</label>
+        `;
+        container.appendChild(div);
     });
 }
 
