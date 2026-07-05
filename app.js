@@ -618,7 +618,7 @@ async function addFriend() {
         }
 
         if (!friendUsername) {
-            alert(`No student found with username or email: "${nameOrEmail}". Make sure they sign up first!`);
+            alert(`No user found with username or email: "${nameOrEmail}". Make sure they sign up first!`);
             return;
         }
 
@@ -724,7 +724,7 @@ function getCategoryFromDesc(desc, type) {
     if (d.includes('maggi') || d.includes('canteen') || d.includes('lunch') || d.includes('dinner') || d.includes('food') || d.includes('eat')) return 'Food & Canteen 🍛';
     if (d.includes('auto') || d.includes('cab') || d.includes('metro') || d.includes('bus') || d.includes('rickshaw')) return 'Transit & Auto 🛺';
     if (d.includes('xerox') || d.includes('book') || d.includes('print') || d.includes('fee') || d.includes('pen') || d.includes('exam')) return 'Academics 📚';
-    if (d.includes('room') || d.includes('rent') || d.includes('wifi') || d.includes('net') || d.includes('electricity')) return 'Hostel Bills 🏠';
+    if (d.includes('room') || d.includes('rent') || d.includes('wifi') || d.includes('net') || d.includes('electricity')) return 'Bills & Rent 🏠';
     if (d.includes('split')) return 'Roomie Splits 👥';
     return 'Other Expense 🎁';
 }
@@ -863,9 +863,9 @@ async function loadDemoData() {
 
         // 3. Staged Demo Transactions
         const txs = [
-            { type: 'salary', amount: 8000, desc: 'Pocket Money from Dad', date: new Date(now.getFullYear(), now.getMonth(), 1) },
+            { type: 'salary', amount: 8000, desc: 'Monthly Salary Inflow', date: new Date(now.getFullYear(), now.getMonth(), 1) },
             { type: 'savings_deposit', amount: 500, desc: 'Deposit to: Noise Earphones 🎧', date: new Date(now.getFullYear(), now.getMonth(), 2) },
-            { type: 'expense', amount: 1500, desc: 'Hostel Wifi bill', date: new Date(now.getFullYear(), now.getMonth(), 3) },
+            { type: 'expense', amount: 1500, desc: 'Wifi bill', date: new Date(now.getFullYear(), now.getMonth(), 3) },
             { type: 'split', amount: 360, desc: 'Canteen Lunch', date: new Date(now.getFullYear(), now.getMonth(), 5), splitDetails: { totalParticipants: 2, amountPerPerson: 180, involvedUsernames: ['rahul'], includedMe: true } },
             { type: 'expense', amount: 40, desc: 'Chai & Samosa', date: new Date(now.getFullYear(), now.getMonth(), 5) },
             { type: 'lend', amount: 50, desc: 'Lent for Xerox Sneha', date: new Date(now.getFullYear(), now.getMonth(), 6), friend: 'sneha' },
@@ -1455,7 +1455,7 @@ async function saveProfile() {
                 // If it is taken, ensure it's not taken by the current user themselves
                 const takenByOther = querySnap.docs.some(doc => doc.id !== username);
                 if (takenByOther) {
-                    alert("This username is already taken by another student. Please pick a different one!");
+                    alert("This username is already taken by another user. Please pick a different one!");
                     return;
                 }
             }
