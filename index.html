@@ -22,9 +22,11 @@
             <div id="auth-view" style="display: block; padding: 30px 20px; overflow-y: auto; height: 100%;">
                 <header style="flex-direction: column; text-align: center; margin-bottom: 30px; gap: 8px;">
                     <img src="logo.png" alt="PocketSafe Logo"
-                        style="width: 72px; height: 72px; border-radius: 20px; box-shadow: var(--shadow-lg);">
-                    <h1 style="font-size: 1.85rem; margin-top: 10px;">PocketSafe</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Collaborative Budget & Split Tracker</p>
+                        style="width: 72px; height: 72px; border-radius: 20px; box-shadow: var(--shadow-lg); margin: 0 auto;">
+                    <div class="logo-text-lg" style="margin-top: 10px;">
+                        <span class="word-pocket">Pocket</span><span class="word-safe">Safe</span>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Collaborative Budget &amp; Split Tracker</p>
                 </header>
 
                 <!-- Login Form Card -->
@@ -95,16 +97,16 @@
                 <div class="app-container">
                 <!-- App Header -->
                 <header>
-                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="showProfileModal()">
-                        <img src="logo.png" alt="Logo" style="width: 34px; height: 34px; border-radius: 10px;">
-                        <h1 style="font-size: 1.35rem;">PocketSafe</h1>
+                    <div class="logo-badge" onclick="showProfileModal()">
+                        <img src="logo.png" alt="Logo">
+                        <div class="logo-text">
+                            <span class="word-pocket">Pocket</span><span class="word-safe">Safe</span>
+                        </div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <!-- Theme Toggle Button -->
-                        <button class="btn"
-                            style="width: 38px; height: 38px; padding: 0; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);"
-                            onclick="toggleTheme()" id="theme-toggle">
-                            <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none; width: 18px; height: 18px;">
+                        <!-- Theme Toggle -->
+                        <button class="icon-btn" onclick="toggleTheme()" id="theme-toggle">
+                            <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display:none; width:17px; height:17px;">
                                 <circle cx="12" cy="12" r="5"></circle>
                                 <line x1="12" y1="1" x2="12" y2="3"></line>
                                 <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -115,12 +117,14 @@
                                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                             </svg>
-                            <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:17px; height:17px;">
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                             </svg>
                         </button>
-                        <div id="user-profile-badge" onclick="showProfileModal()" style="font-size: 0.75rem; font-weight: 700; background: rgba(99,102,241,0.08); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 6px; color: var(--primary); cursor: pointer;">
-                            👤 <span id="user-display-name">...</span>
+                        <!-- User Pill -->
+                        <div class="user-pill" id="user-profile-badge" onclick="showProfileModal()">
+                            <div class="user-pill-avatar" id="user-pill-avatar-img">👤</div>
+                            <span id="user-display-name">...</span>
                         </div>
                     </div>
                 </header>
