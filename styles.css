@@ -203,9 +203,9 @@ header {
 .logo-badge img {
     width: 32px;
     height: 32px;
-    border-radius: 0;
-    box-shadow: none;
-    object-fit: contain;
+    border-radius: 9px;
+    box-shadow: var(--shadow-sm);
+    object-fit: cover;
 }
 
 /* ── Icon button ────────────────────────────────────────────── */
@@ -656,9 +656,9 @@ input::placeholder { color: var(--text-muted); font-weight: 400; }
 .splash-logo {
     width: 110px;
     height: 110px;
-    border-radius: 0;
-    box-shadow: none;
-    object-fit: contain;
+    border-radius: 28px;
+    box-shadow: 0 12px 40px rgba(26,107,219,0.35);
+    object-fit: cover;
     animation: pulse 1.8s infinite ease-in-out;
 }
 .splash-spinner {
