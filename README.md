@@ -1,4 +1,4 @@
-# PocketSafe            
+# PocketSafe
 
 PocketSafe is a smart savings and expense-splitting application built with modern web technologies. It enables users to track personal expenses, set savings goals, and manage shared expenses effortlessly.
 
@@ -14,42 +14,28 @@ PocketSafe is a smart savings and expense-splitting application built with moder
 
 ## Tech Stack
 
-- **Frontend**: Vanilla HTML, CSS, and JavaScript
-- **Backend/Database**: Firebase (Authentication & Firestore)
-- **Icons**: Lucide React via [Lui](https://lui.mcrow.dev)
-- **Styling**: CSS Custom Properties, Flexbox, Grid
+- **Framework**: React 19 (Vite)
+- **Styling**: Vanilla CSS + Tailwind CSS
+- **Animations**: Framer Motion (cinematic splash screen)
+- **Backend**: Firebase (Authentication + Firestore)
+- **Deployment**: GitHub Pages via `gh-pages`
 
-## Getting Started
+## Live Demo
 
-### Prerequisites
+[https://santanu-sp.github.io/Pocket-Safe/](https://santanu-sp.github.io/Pocket-Safe/)
 
-- A Firebase Project (created via [Firebase Console](https://console.firebase.google.com))
-- Firebase SDK Configuration
+## ⚠️ Proprietary & Closed Source ⚠️
 
-### Installation
+**Please read carefully before interacting with this repository.**
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd Debt-Tracker
-   ```
+This repository and all of its contents (code, assets, documentation) are **STRICTLY PROPRIETARY AND CONFIDENTIAL**.
 
-2. Configure Firebase:
-   - Create a Firebase project.
-   - Add a Web app to your Firebase project.
-   - Copy your Firebase configuration object.
-   - Update the `firebaseConfig` variable in `script.js` with your credentials.
+**All Rights Reserved. Copyright (c) 2026 Santanu Panchadhyai.**
 
-3. Run the app locally:
-   Open `index.html` in your web browser. For testing Push Notifications and Service Workers, it's recommended to run the app on a local server (e.g., using `live-server` or Python's `http.server`).
-   ```bash
-   npx live-server
-   ```
+- You **MAY NOT** use, copy, modify, merge, publish, distribute, sublicense, or sell copies of this software.
+- You **MAY NOT** fork, clone, or download this repository for any purpose.
+- You **MAY NOT** use any of the code to build your own projects or claim it as your own work.
 
-### Deployment
+This code is hosted on GitHub for portfolio and viewing purposes only. Any unauthorized use, reproduction, or distribution is strictly prohibited. If you wish to use this software, you must obtain explicit prior written permission from the author.
 
-The application is deployed as a Progressive Web App (PWA). To deploy:
-
-1. Build the project (if necessary).
-2. Upload the files to any static hosting provider (e.g., Firebase Hosting, Netlify, GitHub Pages).
-3. Ensure `manifest.json` and `service-worker.js` are accessible at the root level.
+See the [LICENSE](LICENSE) file for more details.
