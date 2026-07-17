@@ -485,6 +485,35 @@ export default function App() {
         {/* 4. Profile Modal */}
         <div id="modal-profile" className="modal-overlay" style={{ display: 'none', background: 'rgba(0,0,0,0.80)', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
           <div className="modal-content" style={{ bottom: 'auto', top: '8%', width: '92%', margin: '0 auto', borderRadius: 'var(--radius-xl)', position: 'relative', padding: 24, maxHeight: '82vh', overflowY: 'auto' }}>
+            
+            {/* Top Close Shortcut */}
+            <button 
+              className="close-modal-btn" 
+              onClick={() => window.closeModals()}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'var(--input-bg)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                zIndex: 10,
+                transition: 'all var(--ease-out)'
+              }}
+              title="Close modal"
+            >
+              ✕
+            </button>
+
             <h2 style={{ marginBottom: 4, textAlign: 'center', fontSize: '1.1rem' }}>My Profile</h2>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', marginBottom: 16 }}>Your account details and preferences</p>
 
