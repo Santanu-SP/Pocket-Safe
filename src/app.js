@@ -332,11 +332,14 @@ async function loadData() {
                 if (t.type === 'savings_deposit') {
                     savingsTotal += t.amount;
                     // Attribute deposit to the correct goal by goalId
-                    const goalIdx = t.goalId ? loadedGoals.findIndex(g => g.id === t.goalId) : -1;
-                    if (goalIdx >= 0) {
-                        loadedGoals[goalIdx].savedAmount += t.amount;
+                    if (t.goalId) {
+                        const goalIdx = loadedGoals.findIndex(g => g.id === t.goalId);
+                        if (goalIdx >= 0) {
+                            loadedGoals[goalIdx].savedAmount += t.amount;
+                        }
                     } else if (loadedGoals.length > 0) {
-                        loadedGoals[0].savedAmount += t.amount; // Legacy: goes to first goal
+                        // Legacy: no goalId, goes to first goal
+                        loadedGoals[0].savedAmount += t.amount; 
                     }
                 }
             } else if (t.friend === username && t.type === 'repayment') {
@@ -797,7 +800,7 @@ function renderReports() {
         if (tDate >= startDate && tDate <= endDate) {
             if (t.type === 'income' || t.type === 'salary' || (t.type === 'repayment' && t.friend === STATE.currentUser)) {
                 income += t.amount;
-            } else if (t.type === 'expense' || t.type === 'split' || t.type === 'savings_deposit' || t.type === 'lend' || (t.type === 'repayment' && t.payer === STATE.currentUser)) {
+            } else if (t.type === 'expense' || t.type === 'split' || t.type === 'lend' || (t.type === 'repayment' && t.payer === STATE.currentUser)) {
                 let actualCost = t.amount;
                 if (t.type === 'split' && t.splitDetails) {
                     actualCost = t.splitDetails.amountPerPerson;
@@ -1936,7 +1939,7 @@ function renderSavingsRateBadge() {
         if (t.type === 'income' || t.type === 'salary' || (t.type === 'repayment' && t.friend === STATE.currentUser)) {
             income += t.amount;
         } else if (t.payer === STATE.currentUser) {
-            if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
+            if (t.type === 'expense' || t.type === 'lend') {
                 expense += t.amount;
             } else if (t.type === 'split' && t.splitDetails) {
                 expense += t.splitDetails.amountPerPerson;
