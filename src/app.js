@@ -868,16 +868,7 @@ function renderReports() {
     renderSavingsRateBadge();
 }
 
-// Hook router listener
-const originalSwitchView = window.switchView;
-window.switchView = function (viewId, navEl) {
-    if (typeof originalSwitchView === 'function') {
-        originalSwitchView(viewId, navEl);
-    }
-    if (viewId === 'view-reports') {
-        renderReports();
-    }
-}
+// Note: renderReports() is already called inside switchView() below when viewId==='view-reports'
 
 // --- STUDENT DEMO SETUP (Simulated in Firestore) ---
 async function loadDemoData() {
@@ -963,6 +954,24 @@ function renderAll() {
     renderSavingsPace();
 }
 
+function getTxMeta(t) {
+    const typeMap = {
+        expense:         { label: 'Spent',    dot: '#ef4444', sign: '-', cls: 'amount-negative' },
+        income:          { label: 'Received', dot: '#059669', sign: '+', cls: 'amount-positive'  },
+        salary:          { label: 'Allowance',dot: '#059669', sign: '+', cls: 'amount-positive'  },
+        lend:            { label: 'Lent',     dot: '#d97706', sign: '-', cls: 'amount-negative'  },
+        repayment:       { label: 'Paid Back',dot: '#059669', sign: '+', cls: 'amount-positive'  },
+        split:           { label: 'Split',    dot: '#6366f1', sign: '-', cls: 'amount-negative'  },
+        savings_deposit: { label: 'Saved',    dot: '#047857', sign: '-', cls: 'amount-negative'  },
+    };
+    const meta = typeMap[t.type] || { label: t.type, dot: '#8a9180', sign: '', cls: '' };
+    let amount = t.amount;
+    if (t.type === 'split' && t.splitDetails) amount = t.splitDetails.amountPerPerson;
+    // Repayment received by current user = positive
+    if (t.type === 'repayment' && t.friend === STATE.currentUser) { meta.sign = '+'; meta.cls = 'amount-positive'; }
+    return { ...meta, amount };
+}
+
 function renderDashboard() {
     document.getElementById('parent-allowance').textContent = formatCurrency(STATE.settings.salaryAmount || 0);
     document.getElementById('total-wallet').textContent = formatCurrency(STATE.balance);
@@ -973,38 +982,26 @@ function renderDashboard() {
     list.innerHTML = '';
 
     if (STATE.transactions.length === 0) {
-        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;font-size:0.9rem;">No transactions yet</li>';
+        list.innerHTML = '<li class="list-item" style="color:var(--text-secondary);justify-content:center;font-size:0.9rem;padding:20px 0;">No transactions yet — tap + to add one!</li>';
         return;
     }
 
     STATE.transactions.slice(0, 4).forEach(t => {
         const li = document.createElement('li');
         li.className = 'list-item';
-
-        let colorClass = 'amount-positive';
-        let prefix = '+';
-        let amount = t.amount;
-
-        if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
-            colorClass = 'amount-negative';
-            prefix = '-';
-        } else if (t.type === 'split') {
-            colorClass = 'amount-negative';
-            prefix = '-';
-            if (t.splitDetails) {
-                amount = t.splitDetails.amountPerPerson;
-            }
-        }
-
+        const { label, dot, sign, cls, amount } = getTxMeta(t);
         const dateObj = new Date(t.date);
         const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
 
         li.innerHTML = `
-            <div>
-                <div style="font-weight:700; font-size:0.9rem;">${t.desc}</div>
-                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${dateStr} • ${t.type.toUpperCase()}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
+                <div style="min-width:0;">
+                    <div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desc}</div>
+                    <div style="font-size:0.68rem;color:var(--text-muted);font-weight:500;margin-top:1px;">${dateStr} &middot; ${label}</div>
+                </div>
             </div>
-            <div class="${colorClass}">${prefix}${formatCurrency(amount)}</div>
+            <div class="${cls}" style="font-size:0.88rem;flex-shrink:0;margin-left:8px;">${sign}${formatCurrency(amount)}</div>
         `;
         list.appendChild(li);
     });
@@ -1081,31 +1078,19 @@ function renderHistoryView() {
     filtered.forEach(t => {
         const li = document.createElement('li');
         li.className = 'list-item';
-
-        let colorClass = 'amount-positive';
-        let prefix = '+';
-        let amount = t.amount;
-
-        if (t.type === 'expense' || t.type === 'lend' || t.type === 'savings_deposit') {
-            colorClass = 'amount-negative';
-            prefix = '-';
-        } else if (t.type === 'split') {
-            colorClass = 'amount-negative';
-            prefix = '-';
-            if (t.splitDetails) {
-                amount = t.splitDetails.amountPerPerson;
-            }
-        }
-
+        const { label, dot, sign, cls, amount } = getTxMeta(t);
         const dateObj = new Date(t.date);
         const dateStr = `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')}`;
 
         li.innerHTML = `
-            <div>
-                <div style="font-weight:700; font-size:0.9rem;">${t.desc}</div>
-                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">${dateStr} • ${t.type.toUpperCase()}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
+                <div style="min-width:0;">
+                    <div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desc}</div>
+                    <div style="font-size:0.68rem;color:var(--text-muted);font-weight:500;margin-top:1px;">${dateStr} &middot; ${label}</div>
+                </div>
             </div>
-            <div class="${colorClass}">${prefix}${formatCurrency(amount)}</div>
+            <div class="${cls}" style="font-size:0.88rem;flex-shrink:0;margin-left:8px;">${sign}${formatCurrency(amount)}</div>
         `;
         list.appendChild(li);
     });
@@ -1344,10 +1329,16 @@ async function clearAllData() {
         const txsSnap = await db.collection('transactions').where('payer', '==', username).get();
         txsSnap.forEach(doc => batch.delete(doc.ref));
         const userRef = db.collection('users').doc(username);
-        batch.update(userRef, { settings: { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false }, savingsGoal: { title: 'Set a savings goal! 🎯', target: 0 }, friends: [] });
+        batch.update(userRef, {
+            settings: { salaryAmount: 0, salaryDate: 1, lastSalaryMonth: null, onboarded: false },
+            savingsGoal: { title: 'Set a savings goal! 🎯', target: 0 },
+            savingsGoals: [],
+            autoSave: { enabled: false, percent: 20 },
+            friends: []
+        });
         await batch.commit();
-        alert('Data reset successfully!');
-        location.reload();
+        showToast('Everything cleared. Fresh start!');
+        setTimeout(() => location.reload(), 1200);
     } catch (e) { alert('Reset failed: ' + e.message); }
 }
 

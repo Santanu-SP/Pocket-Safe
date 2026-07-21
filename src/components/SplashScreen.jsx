@@ -1,78 +1,23 @@
-import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── Particle Component ────────────────────────────────────────────────────
-function Particle({ angle, delay }) {
-  const distance = 85 + Math.random() * 50;
-  const x = Math.cos((angle * Math.PI) / 180) * distance;
-  const y = Math.sin((angle * Math.PI) / 180) * distance;
-  const size = 2 + Math.random() * 3;
-
+// ─── Letter-reveal span ─────────────────────────────────────────────────────
+function RevealLetter({ char, delay }) {
   return (
-    <motion.div
-      className="absolute rounded-full"
-      style={{
-        width: size,
-        height: size,
-        background: `hsl(${150 + Math.random() * 30}, 72%, ${48 + Math.random() * 20}%)`,
-        top: '50%',
-        left: '50%',
-        marginTop: -size / 2,
-        marginLeft: -size / 2,
-      }}
-      initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-      animate={{ x, y, opacity: 0, scale: 0 }}
-      transition={{ duration: 0.9, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-    />
-  );
-}
-
-// ─── Animated Arc Ring ─────────────────────────────────────────────────────
-function ArcRing({ size, strokeWidth, delay }) {
-  const r = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * r;
-
-  return (
-    <motion.svg
-      width={size}
-      height={size}
-      className="absolute"
-      style={{ top: '50%', left: '50%', marginTop: -size / 2, marginLeft: -size / 2 }}
-      initial={{ rotate: -90, opacity: 0 }}
-      animate={{ rotate: 270, opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 1.8, delay, ease: 'easeInOut' }}
+    <motion.span
+      style={{ display: 'inline-block' }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
-      <motion.circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="url(#arcGradMoney)"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        initial={{ strokeDashoffset: circumference }}
-        animate={{ strokeDashoffset: 0 }}
-        transition={{ duration: 1.6, delay: delay + 0.1, ease: [0.16, 1, 0.3, 1] }}
-      />
-      <defs>
-        <linearGradient id="arcGradMoney" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="50%" stopColor="#059669" />
-          <stop offset="80%" stopColor="#d97706" />
-          <stop offset="100%" stopColor="#047857" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-    </motion.svg>
+      {char}
+    </motion.span>
   );
 }
 
-// ─── Main Splash Screen ────────────────────────────────────────────────────
+// ─── Main Splash Screen ─────────────────────────────────────────────────────
 export default function SplashScreen({ isVisible }) {
-  const particles = Array.from({ length: 24 }, (_, i) => ({
-    angle: (360 / 24) * i,
-    delay: 0.05 + Math.random() * 0.2,
-  }));
+  const pocketLetters = 'Pocket'.split('');
+  const safeLetters   = 'Safe'.split('');
 
   return (
     <AnimatePresence>
@@ -81,140 +26,141 @@ export default function SplashScreen({ isVisible }) {
           key="splash"
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
           style={{ background: 'var(--bg-color)' }}
-          exit={{ opacity: 0, scale: 1.05 }}
-          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
         >
-          {/* ── Background ambient glow ── */}
+          {/* ── Ambient background glow ── */}
           <motion.div
-            className="absolute rounded-full"
+            className="absolute"
             style={{
-              width: 300,
-              height: 300,
+              width: 380,
+              height: 380,
+              borderRadius: '50%',
               background:
-                  'radial-gradient(circle, rgba(5,150,105,0.16) 0%, rgba(217,119,6,0.07) 55%, transparent 70%)',
+                'radial-gradient(circle at 60% 40%, rgba(5,150,105,0.10) 0%, rgba(217,119,6,0.05) 50%, transparent 70%)',
               top: '50%',
               left: '50%',
-              marginTop: -150,
-              marginLeft: -150,
+              marginTop: -190,
+              marginLeft: -190,
             }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1, ease: 'easeOut' }}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.4, ease: 'easeOut' }}
           />
-
-          {/* ── Particle burst ── */}
-          <div className="absolute" style={{ top: '50%', left: '50%' }}>
-            {particles.map((p, i) => (
-              <Particle key={i} angle={p.angle} delay={p.delay} />
-            ))}
-          </div>
-
-          {/* ── Arc rings ── */}
-          <ArcRing size={170} strokeWidth={2} delay={0.7} />
-          <ArcRing size={210} strokeWidth={1.2} delay={0.95} />
 
           {/* ── Logo ── */}
           <motion.div
             className="relative z-10"
-            initial={{ opacity: 0, scale: 0.3 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-              duration: 0.75,
-              delay: 0.2,
-              ease: [0.34, 1.56, 0.64, 1],
-            }}
+            initial={{ opacity: 0, y: -32, scale: 0.88 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.34, 1.2, 0.64, 1] }}
           >
-            {/* Glow halo */}
             <motion.div
-              className="absolute rounded-[38px]"
+              className="absolute"
               style={{
-                inset: -14,
+                inset: -12,
+                borderRadius: 38,
                 background:
-                  'radial-gradient(circle, rgba(5,150,105,0.4) 0%, rgba(217,119,6,0.15) 60%, transparent 80%)',
+                  'radial-gradient(circle, rgba(5,150,105,0.22) 0%, rgba(217,119,6,0.08) 55%, transparent 75%)',
+                zIndex: 0,
               }}
-              animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.12, 1] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 0.7] }}
+              transition={{ duration: 1.6, delay: 0.5, ease: 'easeOut' }}
             />
             <img
               src="assets/logo.png"
               alt="PocketSafe Logo"
               className="relative z-10 object-cover"
-              style={{ width: 100, height: 100, borderRadius: 26, display: 'block' }}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 24,
+                display: 'block',
+                boxShadow: '0 12px 36px rgba(5,150,105,0.22), 0 3px 10px rgba(0,0,0,0.14)',
+              }}
             />
           </motion.div>
 
-          {/* ── Brand name ── */}
+          {/* ── Brand name reveal ── */}
           <motion.div
-            className="relative z-10 mt-6 text-center"
-            initial={{ opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative z-10 mt-5 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.01, delay: 0.55 }}
           >
             <div
               style={{
                 fontFamily: "'Nunito', sans-serif",
-                fontSize: '2rem',
+                fontSize: '2.1rem',
                 fontWeight: 900,
                 letterSpacing: '-0.03em',
                 lineHeight: 1,
-                position: 'relative',
-                display: 'inline-block',
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'center',
               }}
             >
-              {/* Shimmer sweep overlay */}
-              <motion.div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background:
-                    'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%)',
-                  backgroundSize: '200% 100%',
-                  zIndex: 1,
-                  borderRadius: 4,
-                }}
-                initial={{ backgroundPosition: '-100% 0' }}
-                animate={{ backgroundPosition: '200% 0' }}
-                transition={{ duration: 0.9, delay: 0.85, ease: 'easeInOut' }}
-              />
-              <span style={{ color: 'var(--text-primary)' }}>Pocket</span>
-              <span style={{ color: 'var(--primary)' }}>Safe</span>
+              <span style={{ color: 'var(--text-primary)' }}>
+                {pocketLetters.map((char, i) => (
+                  <RevealLetter key={i} char={char} delay={0.58 + i * 0.045} />
+                ))}
+              </span>
+              <span style={{ color: 'var(--primary)' }}>
+                {safeLetters.map((char, i) => (
+                  <RevealLetter
+                    key={i}
+                    char={char}
+                    delay={0.58 + pocketLetters.length * 0.045 + 0.05 + i * 0.045}
+                  />
+                ))}
+              </span>
             </div>
 
             {/* Tagline */}
             <motion.div
               className="mt-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.85, ease: [0.25, 0.46, 0.45, 0.94] }}
-              style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{
+                duration: 0.5,
+                delay: 0.58 + (pocketLetters.length + safeLetters.length) * 0.045 + 0.15,
+                ease: 'easeOut',
+              }}
+              style={{
+                color: 'var(--text-muted)',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                letterSpacing: '0.01em',
+              }}
             >
-              Your money, your rules 🌱
+              Your money, your rules
             </motion.div>
           </motion.div>
 
-          {/* ── Loading bar ── */}
+          {/* ── Progress sweep bar ── */}
           <motion.div
             className="relative z-10 mt-10 overflow-hidden"
             style={{
-              width: 110,
-              height: 3,
+              width: 100,
+              height: 2,
               borderRadius: 9999,
               background: 'var(--border-color)',
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.9, duration: 0.3 }}
+            transition={{ delay: 1.1, duration: 0.3 }}
           >
             <motion.div
               style={{
                 height: '100%',
                 borderRadius: 9999,
-                background: 'linear-gradient(90deg, #047857, #059669, #d97706)',
+                background: 'linear-gradient(90deg, var(--primary), var(--gold))',
                 originX: 0,
               }}
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: 2.0, delay: 0.95, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 1.85, delay: 1.15, ease: [0.16, 1, 0.3, 1] }}
             />
           </motion.div>
         </motion.div>
