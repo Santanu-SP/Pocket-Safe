@@ -1760,7 +1760,7 @@ async function saveGoalEdit(idx) {
         return;
     }
 
-    const goals = (STATE.savingsGoals || []).map(g => ({ id: g.id, title: g.title, target: g.target }));
+    const goals = (STATE.savingsGoals || []).map(g => ({ id: g.id, title: g.title, target: g.target, savedAmount: g.savedAmount }));
     if (!goals[idx]) return;
     goals[idx] = { ...goals[idx], title, target };
 
@@ -1772,67 +1772,76 @@ async function saveGoalEdit(idx) {
 }
 
 function showAddGoalForm() {
-    const goals = STATE.savingsGoals || [];
-    if (goals.length >= 3) {
-        showToast('You can have up to 3 savings goals at a time.');
-        return;
+    try {
+        const goals = STATE.savingsGoals || [];
+        if (goals.length >= 3) {
+            showToast('You can have up to 3 savings goals at a time.');
+            return;
+        }
+        const form = document.getElementById('add-goal-form');
+        if (form) form.style.display = 'block';
+        const btn = document.getElementById('add-goal-btn');
+        if (btn) btn.style.display = 'none';
+    } catch (e) {
+        alert("Error showing goal form: " + e.message);
     }
-    const form = document.getElementById('add-goal-form');
-    if (form) form.style.display = 'block';
-    const btn = document.getElementById('add-goal-btn');
-    if (btn) btn.style.display = 'none';
 }
 
 function hideAddGoalForm() {
-    const form = document.getElementById('add-goal-form');
-    if (form) form.style.display = 'none';
-    const titleInput = document.getElementById('new-goal-title');
-    const targetInput = document.getElementById('new-goal-target');
-    if (titleInput) titleInput.value = '';
-    if (targetInput) targetInput.value = '';
-    const btn = document.getElementById('add-goal-btn');
-    if (btn) btn.style.display = '';
+    try {
+        const form = document.getElementById('add-goal-form');
+        if (form) form.style.display = 'none';
+        const titleInput = document.getElementById('new-goal-title');
+        const targetInput = document.getElementById('new-goal-target');
+        if (titleInput) titleInput.value = '';
+        if (targetInput) targetInput.value = '';
+        const btn = document.getElementById('add-goal-btn');
+        if (btn) btn.style.display = '';
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 async function addGoal() {
-    const titleInput = document.getElementById('new-goal-title');
-    const targetInput = document.getElementById('new-goal-target');
-    const title = titleInput ? titleInput.value.trim() : '';
-    const target = parseFloat(targetInput ? targetInput.value : '');
+    try {
+        const titleInput = document.getElementById('new-goal-title');
+        const targetInput = document.getElementById('new-goal-target');
+        const title = titleInput ? titleInput.value.trim() : '';
+        const target = parseFloat(targetInput ? targetInput.value : '');
 
-    if (!title || isNaN(target) || target <= 0) {
-        showToast('Please enter a goal name and a target amount.');
-        return;
-    }
+        if (!title || isNaN(target) || target <= 0) {
+            showToast('Please enter a goal name and a valid target amount.');
+            return;
+        }
 
-    const currentGoals = STATE.savingsGoals || [];
+        const currentGoals = STATE.savingsGoals || [];
 
-    // If we have only the placeholder goal (no target, legacy id), replace it
-    if (currentGoals.length === 1 && currentGoals[0].id === 'g_legacy' && currentGoals[0].target === 0) {
-        const updated = [{ id: 'g_legacy', title, target }];
-        try {
+        // If we have only the placeholder goal (no target, legacy id), replace it
+        if (currentGoals.length === 1 && currentGoals[0].id === 'g_legacy' && currentGoals[0].target === 0) {
+            const updated = [{ id: 'g_legacy', title, target }];
             await db.collection('users').doc(STATE.currentUser).update({ savingsGoals: updated });
             hideAddGoalForm();
             await loadData();
             showToast(`Goal "${title}" created! 🎯`);
-        } catch (e) { showToast('Failed to create goal: ' + e.message); }
-        return;
-    }
+            return;
+        }
 
-    if (currentGoals.length >= 3) {
-        showToast('You can have up to 3 savings goals at a time.');
-        return;
-    }
+        if (currentGoals.length >= 3) {
+            showToast('You can have up to 3 savings goals at a time.');
+            return;
+        }
 
-    const newGoal = { id: 'g_' + Date.now(), title, target };
-    const newGoals = [...currentGoals.map(g => ({ id: g.id, title: g.title, target: g.target })), newGoal];
+        const newGoal = { id: 'g_' + Date.now(), title, target };
+        const newGoals = [...currentGoals.map(g => ({ id: g.id, title: g.title, target: g.target })), newGoal];
 
-    try {
         await db.collection('users').doc(STATE.currentUser).update({ savingsGoals: newGoals });
         hideAddGoalForm();
         await loadData();
         showToast(`Goal "${title}" created! 🎯`);
-    } catch (e) { showToast('Failed to create goal: ' + e.message); }
+    } catch (e) { 
+        console.error("Failed to add goal", e);
+        alert('Failed to create goal: ' + e.message); 
+    }
 }
 
 async function depositToGoal(idx) {
