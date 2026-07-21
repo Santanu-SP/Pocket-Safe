@@ -132,7 +132,12 @@ export default function App() {
                   </svg>
                 </button>
                 <div className="user-pill" id="user-profile-badge" onClick={() => window.showProfileModal()}>
-                  <div className="user-pill-avatar" id="user-pill-avatar-img">👤</div>
+                  <div className="user-pill-avatar" id="user-pill-avatar-img">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '65%', height: '65%', color: '#fff' }}>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                  </div>
                   <span id="user-display-name">...</span>
                 </div>
               </div>
@@ -566,9 +571,17 @@ export default function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
-              <div id="profile-avatar-preview" style={{ width: 76, height: 76, borderRadius: '50%', background: 'var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', border: '2.5px solid var(--primary)', overflow: 'hidden', objectFit: 'cover', color: 'var(--text-secondary)', marginBottom: 10 }}>👤</div>
+              <div id="profile-avatar-preview" style={{ width: 76, height: 76, borderRadius: '50%', background: 'var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2.5px solid var(--primary)', overflow: 'hidden', color: 'var(--text-secondary)', marginBottom: 10 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '55%', height: '55%', color: 'var(--text-secondary)' }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
               <input type="file" id="profile-upload" accept="image/*" style={{ display: 'none' }} onChange={(e) => window.handleImageUpload(e)} />
-              <button className="btn btn-secondary" onClick={() => document.getElementById('profile-upload').click()} style={{ width: 'auto', padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: 8 }}>Change Photo</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary" onClick={() => document.getElementById('profile-upload').click()} style={{ width: 'auto', padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: 8 }}>Change Photo</button>
+                <button className="btn btn-secondary" onClick={() => window.removeProfilePhoto()} style={{ width: 'auto', padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: 8, color: 'var(--text-muted)' }}>Remove Photo</button>
+              </div>
             </div>
 
             <div className="input-group"><label>Your Username (friends use this to add you)</label><input type="text" id="profile-username" placeholder="e.g. rahul_wallet" /></div>

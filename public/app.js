@@ -240,6 +240,9 @@ async function loadData() {
         const nameEl = document.getElementById('user-display-name');
         if (nameEl) nameEl.textContent = displayName;
 
+        // Render profile avatar icon/photo in top pill
+        renderUserAvatar(userData.photoUrl);
+
         const banner = document.getElementById('username-reminder-banner');
         if (banner) {
             banner.style.display = (userData.customUsername) ? 'none' : 'flex';
@@ -1342,6 +1345,29 @@ async function clearAllData() {
     } catch (e) { alert('Reset failed: ' + e.message); }
 }
 
+const DEFAULT_AVATAR_HEADER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:65%;height:65%;color:#fff;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+const DEFAULT_AVATAR_PREVIEW_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:55%;height:55%;color:var(--text-secondary);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+
+function renderUserAvatar(photoUrl) {
+    const pillAvatar = document.getElementById('user-pill-avatar-img');
+    if (pillAvatar) {
+        if (photoUrl) {
+            pillAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            pillAvatar.innerHTML = DEFAULT_AVATAR_HEADER_SVG;
+        }
+    }
+}
+
+function removeProfilePhoto() {
+    selectedPhotoBase64 = '';
+    const preview = document.getElementById('profile-avatar-preview');
+    if (preview) {
+        preview.innerHTML = DEFAULT_AVATAR_PREVIEW_SVG;
+    }
+}
+window.removeProfilePhoto = removeProfilePhoto;
+
 let selectedPhotoBase64 = '';
 
 function handleImageUpload(event) {
@@ -1385,7 +1411,7 @@ async function showProfileModal() {
                 if (selectedPhotoBase64) {
                     preview.innerHTML = `<img src="${selectedPhotoBase64}" style="width:100%;height:100%;object-fit:cover;">`;
                 } else {
-                    preview.textContent = '👤';
+                    preview.innerHTML = DEFAULT_AVATAR_PREVIEW_SVG;
                 }
             }
             // Show username change info
@@ -1441,6 +1467,7 @@ async function saveProfile() {
             updatePayload.customUsername = newUsername;
         }
         await db.collection('users').doc(username).update(updatePayload);
+        renderUserAvatar(selectedPhotoBase64);
         alert('Profile updated successfully!');
         closeModals();
         await loadData();
