@@ -707,20 +707,20 @@ async function settleFriendDebt(friendId, friendName, amount) {
 
 // --- STUDENT ALLOWANCE LOGIC ---
 async function saveSalaryConfig() {
-    const amount = parseFloat(document.getElementById('salary-input').value);
-    const date = parseInt(document.getElementById('salary-date').value);
+    let amount = parseFloat(document.getElementById('salary-input').value);
+    const date = parseInt(document.getElementById('salary-date').value) || 1;
 
-    if (isNaN(amount) || isNaN(date)) return;
+    if (isNaN(amount)) amount = 0;
 
     try {
         await db.collection('users').doc(STATE.currentUser).update({
             'settings.salaryAmount': amount,
             'settings.salaryDate': date
         });
-        alert("Allowance settings saved!");
+        showToast("Allowance settings saved! 💰");
         await loadData();
     } catch (e) {
-        alert("Error saving settings: " + e.message);
+        showToast("Error saving settings: " + e.message);
     }
 }
 
@@ -729,7 +729,7 @@ async function checkSalaryAutoAdd() {
     const currentMonthStr = `${today.getFullYear()}-${today.getMonth() + 1}`;
 
     if (STATE.settings.lastSalaryMonth !== currentMonthStr && STATE.settings.salaryAmount > 0) {
-        if (today.getDate() >= STATE.settings.salaryDate) {
+        if (today.getDate() >= STATE.settings.salaryDate || !STATE.settings.lastSalaryMonth) {
             try {
                 const batch = db.batch();
 

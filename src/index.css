@@ -65,9 +65,9 @@ body.dark-mode {
     --input-bg:     #232720;
     --border-color: #333830;
 
-    --text-primary:   #f0ede4;
-    --text-secondary: #9aab8c;
-    --text-muted:     #4f5c47;
+    --text-primary:   #fdfcf7;
+    --text-secondary: #c2cfb6;
+    --text-muted:     #8a997a;
 
     --shadow-xs: 0 1px 3px rgba(0,0,0,0.35);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
